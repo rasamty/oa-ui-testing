@@ -1,5 +1,6 @@
 import { test as base, expect, type Page } from '@playwright/test';
 import { addCoverageReport } from 'monocart-reporter';
+import { quickAudit } from './audit';
 
 const FILES = {
   v11: '/app/Objective%20Alignment%20v11.html',
@@ -67,7 +68,7 @@ export async function linkFirstPerfPair(page: Page) {
  * the page's hidden error bar must never surface, and the live JSON state
  * block must stay valid JSON for as long as we are on the app.
  */
-export const test = base.extend<{ coverage: void; noErrors: void }>({
+export const test = base.extend<{ coverage: void; uiAudit: void; noErrors: void }>({
   // Collect V8 JS coverage on Chromium only and hand it to monocart-reporter.
   // Firefox / WebKit have no page.coverage — they still run the tests, just
   // don't contribute coverage numbers.
@@ -81,6 +82,19 @@ export const test = base.extend<{ coverage: void; noErrors: void }>({
       if (chromium) {
         const entries = await page.coverage.stopJSCoverage();
         await addCoverageReport(entries, test.info());
+      }
+    },
+    { auto: true },
+  ],
+
+  // A fast layout check after every test, in whatever state that test left the page.
+  uiAudit: [
+    async ({ page }, use) => {
+      await use();
+      try {
+        await quickAudit(page, test.info());
+      } catch {
+        /* never let the audit break an otherwise-passing test */
       }
     },
     { auto: true },
