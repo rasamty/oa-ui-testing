@@ -2146,6 +2146,9 @@
         // 👇 Add these two lines once, right after restore() is done
         window.UI = UI;
         window.OA = OA;
+        // Expose the UI saver so out-of-IIFE code (the pre-navigation confirm flow)
+        // can persist UI state — otherwise its `typeof saveUI` check silently fails.
+        window.saveUI = saveUI;
 
         /* helpers */
         function $(s) {
@@ -2776,6 +2779,10 @@
               saveUI();
               renderHeader();
               renderTitles();
+              try {
+                if (typeof save === "function") save();
+                else if (typeof updateJson === "function") updateJson();
+              } catch (_) {}
             }
             inp.addEventListener("keydown", function (e) {
               if (e.key === "Enter") {
