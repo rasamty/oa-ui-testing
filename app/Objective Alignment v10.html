@@ -1,0 +1,3657 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Portfolio Alignment: My Organisation</title>
+<style>
+:root{ --bg:#060a10;--panel:#0b1626;--panel-2:#0f1c2e;--text:#eef5ff;--border:#28364f;--blue:#39a8ff;--green:#38e0a5;--red:#ff6b6b;--shadow:0 16px 42px rgba(0,0,0,.6);}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:Segoe UI,Arial,sans-serif}
+.top{background:var(--panel-2);padding:.6rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.headerRow{display:flex;flex-wrap:wrap;gap:.6rem 1rem;align-items:center;padding:.75rem 1rem 0;color:#cfe2ff}
+.headerRow .segToggle{display:inline-flex;border:1px solid #29446d;border-radius:999px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.headerRow .segToggle button{padding:.35rem .75rem;border:none;background:transparent;color:#a8d2ff;cursor:pointer;font-weight:600}
+.headerRow .segToggle button.active{background:#12243a;color:#e9f2ff}
+.headerRow select{background:#0b1526;border:1px solid #29446d;color:#e9f2ff;border-radius:10px;padding:.35rem .6rem;min-width:160px}
+.viewEditPill{margin-left:auto;border:1px solid #d8c742;background:#2b2a2c;color:#fff4a3;border-radius:999px;padding:.25rem .6rem;display:inline-flex;align-items:center;gap:.35rem;box-shadow:0 0 12px rgba(255,248,128,.9),0 0 24px rgba(255,248,128,.5);cursor:pointer}
+.viewEditPill .pen{display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-left:none;border-bottom:none;transform:rotate(45deg);border-radius:2px}
+.iconBtn{border:1px solid #29446d;background:#0b1526;color:#e9f2ff;border-radius:8px;padding:.3rem .6rem;cursor:pointer}
+.iconBtn:hover{box-shadow:0 0 10px rgba(41,68,109,.6)} .iconBtn.danger{border-color:#8a2a2a;background:#1a0f11;color:#ffd7db}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:200px;padding:1rem;align-items:start}
+.pane{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:1rem;min-height:420px;max-height:70vh;overflow:auto;box-shadow:var(--shadow)}
+.list{display:flex;flex-direction:column;gap:.6rem;padding-bottom:2rem}
+.item{display:grid;grid-template-columns:22px 1fr 54px;align-items:center;gap:.5rem;background:#0f1626;border:1px solid #20324e;border-radius:10px;padding:.5rem .6rem;position:relative}
+.item.inactive{opacity:.55;filter:saturate(.8)}
+.handle{cursor:grab;user-select:none;opacity:.8} .handle.disabled{cursor:not-allowed;opacity:.5}
+.label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:text} .label.locked{cursor:not-allowed;opacity:.8}
+.label[contenteditable="true"]{outline:1px dashed var(--blue)}
+.actions{display:flex;gap:.3rem;justify-content:flex-end}
+.chk,.del{width:24px;height:24px;border-radius:8px;border:1px solid #3c5a88;display:grid;place-items:center;cursor:pointer;font-weight:bold}
+.chk{background:#0f1c18;color:#8ff6c1;border-color:#2f7f6b} .del{background:#1a0f11;color:#ff6666;border-color:#b63b3b}
+.sliderRow{grid-column:1/-1;display:flex;align-items:center;gap:.5rem;margin-top:.4rem} .sliderRow input[type=range]{flex:1} .sliderRow input[type=range].disabled{opacity:.5;pointer-events:none}
+.weightPct{width:40px;text-align:right}
+.totalBadge{padding:.12rem .5rem;border-radius:999px;border:1px solid #39537a;background:#0b1526;font-size:12px;line-height:1.2;margin-left:.5rem}
+.totalBadge.green{color:#0fe39f;border-color:#2f7f6b;background:#0f1c18} .totalBadge.red{color:#ffb3b8;border-color:#8a2a2a;background:#1a0f11}
+.flag{display:none;margin-left:.5rem;width:18px;height:18px;border-radius:50%;background:#2a0f14;border:1px solid #ff5570;box-shadow:0 0 12px rgba(255,90,110,.9);color:#ff90a0;font-weight:800;font-size:12px;line-height:18px;text-align:center;cursor:pointer;vertical-align:middle}
+/* links */
+svg.links{position:fixed;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:50} svg.links path.link{pointer-events:stroke;cursor:crosshair}
+.flashPlus{position:absolute;top:58%;transform:translateY(-50%);width:24px;height:24px;border-radius:50%;border:1px solid var(--blue);display:none;place-items:center;background:#0b1526;color:#39a8ff;cursor:pointer;box-shadow:0 0 14px rgba(57,168,255,.8),0 0 22px rgba(57,168,255,.4)}
+.metric .flashPlus{right:-14px} .objective .flashPlus{left:-14px} @keyframes pulse{from{opacity:.6}to{opacity:1}} .flash{animation:pulse 1s infinite alternate}
+.plusRow{text-align:center;margin-top:.5rem;position:relative;z-index:1200} button.icon{background:#0b1526;border:1px solid #39a8ff;color:#39a8ff;border-radius:50%;width:56px;height:56px;cursor:pointer;box-shadow:0 0 18px rgba(57,168,255,.7);font-size:28px;pointer-events:auto}
+.jsonFooter{background:#0b1526;border-top:1px solid #22324a;padding:1rem} .jsonFooter h3{margin-top:0;color:#39a8ff} pre#jsonView{max-height:40vh;overflow:auto;background:#060a10;padding:.6rem;border-radius:8px;color:#a8d2ff;font-size:13px}
+.linkModal{position:absolute;z-index:2000;background:#0f1626;border:1px solid #29446d;border-radius:12px;padding:1rem .9rem .8rem;box-shadow:0 12px 30px rgba(0,0,0,.6);display:none;width:170px;align-items:center;gap:.5rem;overflow:hidden}
+.linkModal h4{margin:.1rem 0 .6rem 0;font-size:12px;color:#cfe2ff;text-align:center}
+.linkModal .vNum{position:absolute;top:8px;right:10px;font-size:12px;color:#a8d2ff}
+.vWrap{height:170px;width:110px;margin:0 auto;display:flex;flex-direction:column;align-items:center;gap:.35rem;position:relative;justify-content:center}
+.sliderBox{width:110px;height:150px;display:flex;align-items:center;justify-content:center}
+input.vert{appearance:none;width:190px;height:42px;display:block;transform:rotate(-90deg);transform-origin:center;background:transparent;outline:none;margin:0 auto}
+input.vert::-webkit-slider-runnable-track{height:8px;background:#1e2b3f;border-radius:999px} input.vert::-webkit-slider-thumb{appearance:none;width:18px;height:18px;border-radius:50%;background:#39a8ff;box-shadow:0 0 10px rgba(57,168,255,.9);margin-top:-5px}
+input.vert::-moz-range-track{height:8px;background:#1e2b3f;border-radius:999px} input.vert::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:#39a8ff;border:none;box-shadow:0 0 10px rgba(57,168,255,.9)}
+.confirmOverlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:3000}
+.confirmBox{background:#0f1626;border:1px solid #29446d;border-radius:12px;box-shadow:0 16px 42px rgba(0,0,0,.7);padding:1rem 1.2rem;min-width:320px;color:#e9f2ff}
+.confirmBtns{display:flex;gap:.5rem;justify-content:flex-end;margin-top:1rem}
+.confirmBtns button{border:1px solid #29446d;background:#0b1526;color:#e9f2ff;border-radius:8px;padding:.4rem .8rem;cursor:pointer}
+.confirmBtns .danger{border-color:#8a2a2a;background:#1a0f11;color:#ffd7db}
+.err{display:none;position:fixed;bottom:8px;left:8px;background:#2a0f14;border:1px solid #ff5570;color:#ffd7db;padding:.4rem .6rem;border-radius:8px;z-index:99999;font-size:12px;max-width:80vw}
+.editableLabel{border-bottom:1px dashed transparent;cursor:text}
+
+
+
+/* === Unified "Glass" Modal Theme (overrides) === */
+:root{
+  --glass-bg-1: rgba(17,25,40,.62);   /* deep navy with alpha */
+  --glass-bg-2: rgba(17,25,40,.38);
+  --glass-border: rgba(255,255,255,.18);
+  --glass-hi: rgba(255,255,255,.10);   /* top edge highlight */
+  --glass-low: rgba(0,0,0,.35);        /* bottom edge shade  */
+}
+
+/* Backdrop: darker, blurred, iOS-like */
+.confirmOverlay{
+  background: rgba(0,0,0,.52);
+  -webkit-backdrop-filter: blur(14px) saturate(115%);
+          backdrop-filter: blur(14px) saturate(115%);
+  animation: modalFade .18s ease-out;
+}
+
+/* Glass container with subtle 3-D edges (applies to EVERY modal box) */
+.confirmBox,
+.linkModal{
+  background: linear-gradient(135deg, var(--glass-bg-1), var(--glass-bg-2));
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  box-shadow:
+    0 22px 60px rgba(0,0,0,.55),         /* deep drop shadow */
+    inset 0 1px 0 var(--glass-hi),       /* top inner highlight */
+    inset 0 -1px 0 var(--glass-low);     /* bottom inner shade  */
+  color: #eaf2ff;
+}
+
+/* Size/spacing polish for modal boxes */
+.confirmBox{
+  padding: 1rem 1.15rem 1rem;
+  min-width: 360px;
+}
+
+/* Strength slider popover should look like the other modals too */
+.linkModal{
+  display: none;               /* keep existing behavior */
+  width: 210px;                /* a bit wider for clarity */
+  padding: .9rem .9rem .8rem;
+}
+
+/* Modal headings: brighter for contrast */
+.confirmBox h4,
+.linkModal h4{
+  color: #f5fbff;
+  letter-spacing: .2px;
+  text-shadow: 0 1px 0 rgba(0,0,0,.35);
+}
+
+/* Inputs inside modals: crisp edges, glass-compatible */
+.confirmBox input[type="text"],
+.confirmBox input[type="search"],
+#newPortfolioName{
+  background: rgba(6,12,20,.6);
+  border: 1px solid rgba(180,210,255,.20);
+  border-radius: 10px;
+  color: #e9f2ff;
+  padding: .45rem .6rem;
+  outline: none;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+}
+.confirmBox input[type="text"]:focus,
+#newPortfolioName:focus{
+  border-color: #39a8ff;
+  box-shadow:
+    0 0 0 3px rgba(57,168,255,.18),
+    inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+/* Modal buttons: high-contrast primary/secondary */
+.confirmBtns button,
+.iconBtn{
+  border: 1px solid rgba(120,170,230,.35);
+  background: linear-gradient(180deg, rgba(20,32,52,.95), rgba(12,22,38,.95));
+  color: #e9f2ff;
+  border-radius: 10px;
+  padding: .45rem .85rem;
+  box-shadow: 0 10px 24px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.06);
+  transition: transform .06s ease, box-shadow .12s ease, border-color .12s ease;
+  cursor: pointer;
+}
+.confirmBtns button:hover,
+.iconBtn:hover{
+  border-color: #39a8ff;
+  box-shadow: 0 12px 30px rgba(0,0,0,.55), 0 0 0 3px rgba(57,168,255,.18);
+  transform: translateY(-1px);
+}
+.confirmBtns .danger,
+.iconBtn.danger{
+  border-color: rgba(255,120,120,.45);
+  background: linear-gradient(180deg, rgba(58,12,16,.96), rgba(28,10,12,.96));
+  color: #ffd7db;
+}
+.confirmBtns .danger:hover,
+.iconBtn.danger:hover{
+  box-shadow: 0 12px 30px rgba(0,0,0,.55), 0 0 0 3px rgba(255,90,110,.18);
+}
+
+/* Strength slider itself: crisper track & glow thumb */
+input.vert::-webkit-slider-runnable-track{ height:8px; background: rgba(40,60,88,.9); }
+input.vert::-webkit-slider-thumb{
+  appearance: none; width:18px; height:18px; border-radius:50%;
+  background:#39a8ff; box-shadow: 0 0 12px rgba(57,168,255,.95);
+}
+input.vert::-moz-range-track{ height:8px; background: rgba(40,60,88,.9); }
+input.vert::-moz-range-thumb{
+  width:18px; height:18px; border-radius:50%;
+  background:#39a8ff; border:none; box-shadow: 0 0 12px rgba(57,168,255,.95);
+}
+
+/* Tiny entrance animation */
+@keyframes modalFade{
+  from{ opacity:0; transform: scale(.98); }
+  to  { opacity:1; transform: scale(1); }
+}
+
+/* Backdrop for the Link Strength popover (no JS needed) */
+.linkModal{ z-index: 10010; } /* above the backdrop */
+
+body:has(.linkModal[style*="display: block"])::before,
+body:has(.linkModal.show)::before,
+body:has(.linkModal.open)::before{
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.52);
+  -webkit-backdrop-filter: blur(14px) saturate(115%);
+          backdrop-filter: blur(14px) saturate(115%);
+  z-index: 10000; /* just under the popover */
+  animation: modalFade .18s ease-out;
+  pointer-events: none; /* don't change existing click behavior */
+}
+
+/* (reuses the fade you already have) */
+@keyframes modalFade{
+  from{ opacity:0; transform: scale(.98); }
+  to  { opacity:1; transform: scale(1); }
+}
+/* Fix: fade/blur backdrop specifically when the strength popover is visible */
+#strengthModal{ z-index: 10010; } /* above the backdrop */
+
+body:has(#strengthModal[style*="display:flex"])::before,
+body:has(#strengthModal[style*="display: flex"])::before{
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.52);
+  -webkit-backdrop-filter: blur(14px) saturate(115%);
+          backdrop-filter: blur(14px) saturate(115%);
+  z-index: 10000;           /* just under the popover */
+  animation: modalFade .18s ease-out;
+  pointer-events: none;     /* do not change current click-to-close behavior */
+}
+
+
+
+
+
+/* === Theme Toggle and Light Theme Overrides === */
+.themeToggle{
+  display:inline-flex; align-items:center; justify-content:center;
+  gap:6px; margin-left:auto;
+  border:1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 999px;
+  padding: .25rem .6rem;
+  cursor: pointer;
+  font-weight: 700;
+  box-shadow: 0 8px 24px rgba(0,0,0,.25);
+}
+.themeToggle .sun{display:none}
+:root[data-theme="light"] .themeToggle .sun{display:inline}
+:root[data-theme="light"] .themeToggle .moon{display:none}
+
+/* Flip the core tokens for light */
+:root[data-theme="light"]{
+  --bg:#f6f9fe;
+  --panel:#ffffff;
+  --panel-2:#eef3fb;
+  --text:#0b1220;
+  --border:#c7d4ea;
+  --blue:#006ad6;
+  --green:#00885f;
+  --red:#d64b4b;
+  --shadow:0 16px 42px rgba(0,0,0,.12);
+}
+
+/* Key container overrides for light (surgical) */
+:root[data-theme="light"] .top{
+  background:var(--panel-2); border-bottom:1px solid var(--border);
+}
+:root[data-theme="light"] .grid{ column-gap: 200px; }
+:root[data-theme="light"] .pane{
+  background:var(--panel); border-color:var(--border); color:var(--text);
+}
+:root[data-theme="light"] .list .item{
+  background:#f7fbff; border:1px solid #d6e2f3;
+}
+:root[data-theme="light"] .item.inactive{ opacity:.6; }
+:root[data-theme="light"] .handle{ color:#4c5a74; }
+:root[data-theme="light"] .label.locked{ opacity:.6; }
+:root[data-theme="light"] .actions .chk{
+  background:#eafff6; color:#057b58; border-color:#92cdb8;
+}
+:root[data-theme="light"] .actions .del{
+  background:#fff0f0; color:#d64b4b; border-color:#e6a3a3;
+}
+:root[data-theme="light"] .headerRow{
+  color:#2a3a56;
+}
+:root[data-theme="light"] .headerRow .segToggle{
+  border-color:#c7d4ea; box-shadow:none;
+}
+:root[data-theme="light"] .headerRow .segToggle button{
+  color:#34527a;
+}
+:root[data-theme="light"] .headerRow .segToggle button.active{
+  background:#e7effc; color:#10233f;
+}
+:root[data-theme="light"] .headerRow select{
+  background:#ffffff; border:1px solid #c7d4ea; color:#0b1220;
+}
+:root[data-theme="light"] .iconBtn{
+  border:1px solid #c7d4ea; background:#ffffff; color:#0b1220;
+}
+:root[data-theme="light"] .iconBtn:hover{ box-shadow:0 0 10px rgba(41,68,109,.15); }
+:root[data-theme="light"] .iconBtn.danger{
+  border-color:#e6a3a3; background:#fff0f0; color:#8a1f1f;
+}
+
+/* Totals badge */
+:root[data-theme="light"] .totalBadge{
+  background:#ffffff; border-color:#c7d4ea; color:#0b1220;
+}
+:root[data-theme="light"] .totalBadge.green{
+  background:#eafff6; border-color:#92cdb8; color:#057b58;
+}
+:root[data-theme="light"] .totalBadge.red{
+  background:#fff0f0; border-color:#e6a3a3; color:#a83535;
+}
+
+/* Footer JSON */
+:root[data-theme="light"] .jsonFooter{
+  background:#ffffff; border-top:1px solid #c7d4ea; color:#0b1220;
+}
+:root[data-theme="light"] pre#jsonView{
+  background:#f2f6fd; color:#1d2b44;
+}
+
+/* Links color stays blue but tuned for light */
+:root[data-theme="light"] svg.links path.link{
+  /*stroke: var(--blue); */
+  filter:none; opacity:.9;
+}
+
+/* Modals (glass theme) on light */
+:root[data-theme="light"] .confirmOverlay{
+  background: rgba(0,0,0,.25);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+          backdrop-filter: blur(10px) saturate(120%);
+}
+:root[data-theme="light"] .confirmBox,
+:root[data-theme="light"] .linkModal{
+  background: linear-gradient(135deg, rgba(255,255,255,.85), rgba(245,248,255,.85));
+  border:1px solid rgba(0,0,0,.08);
+  color:#0b1220;
+  box-shadow: 0 22px 60px rgba(0,0,0,.15), inset 0 1px 0 rgba(255,255,255,.6), inset 0 -1px 0 rgba(0,0,0,.05);
+}
+:root[data-theme="light"] .confirmBox h4,
+:root[data-theme="light"] .linkModal h4{ color:#0b1220; text-shadow:none; }
+
+:root[data-theme="light"] .confirmBox input[type="text"],
+:root[data-theme="light"] .confirmBox input[type="search"],
+:root[data-theme="light"] #newPortfolioName{
+  background:#ffffff; border:1px solid #c7d4ea; color:#0b1220;
+  box-shadow: inset 0 1px 0 rgba(0,0,0,.02);
+}
+:root[data-theme="light"] .confirmBtns button,
+:root[data-theme="light"] .iconBtn{
+  background: linear-gradient(180deg, #ffffff, #f4f7fd);
+  border:1px solid #c7d4ea; color:#0b1220;
+  box-shadow: 0 10px 24px rgba(0,0,0,.08), inset 0 1px 0 rgba(255,255,255,.6);
+}
+:root[data-theme="light"] .confirmBtns button:hover,
+:root[data-theme="light"] .iconBtn:hover{
+  border-color:#9fb5d9; box-shadow:0 12px 30px rgba(0,0,0,.12), 0 0 0 3px rgba(0,106,214,.12);
+}
+:root[data-theme="light"] .confirmBtns .danger,
+:root[data-theme="light"] .iconBtn.danger{
+  border-color:#e6a3a3; background: linear-gradient(180deg, #fff0f0, #ffe8e8); color:#8a1f1f;
+}
+:root[data-theme="light"] input.vert::-webkit-slider-runnable-track{ background:#d6e2f3; }
+:root[data-theme="light"] input.vert::-webkit-slider-thumb{ background:#006ad6; box-shadow: 0 0 8px rgba(0,106,214,.35); }
+:root[data-theme="light"] input.vert::-moz-range-track{ background:#d6e2f3; }
+:root[data-theme="light"] input.vert::-moz-range-thumb{ background:#006ad6; box-shadow: 0 0 8px rgba(0,106,214,.35); }
+
+/* Backdrop when link strength popover is visible */
+:root[data-theme="light"] body:has(#strengthModal[style*="display:flex"])::before{
+  background: rgba(0,0,0,.25);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+          backdrop-filter: blur(10px) saturate(120%);
+}
+
+
+/* Org name inline editor polish */
+#Root_Org_Name[contenteditable="true"]{
+  outline: 1px dashed var(--blue);
+  border-bottom-color: var(--blue);
+}
+
+
+/* Ensure left-pane objectives show their flashing plus on the right edge (Objectives mode) */
+.objectiveL .flashPlus{ right:-14px; left:auto; z-index:1200; }
+/* In Objectives mode, right-side pluses are interactive only when a left origin is active */
+body[data-mode="objectives"]:not([data-linking="left"]) .objective:not(.objectiveL) .flashPlus{ pointer-events:none; opacity:.6; }
+
+
+/* Left objective plus visibility is controlled via .showPlusL class (hover/active) */
+/* Ensure the SVG link layer doesn't block UI clicks */
+#linkLayer { pointer-events: none; position: fixed; z-index: 1; }
+
+
+/* --- Precise LEFT objective plus placement & visibility --- */
+#leftPane .item.objectiveL{ position: relative; overflow: visible; }
+#leftPane .item.objectiveL .flashPlus{
+  position:absolute; top:50%; right:-4px; transform:translateY(-50%);
+  z-index:10000; display:none;
+}
+/* In Objectives mode, hovering a LEFT objective shows its own plus (visual cue like metrics) */
+body[data-mode="objectives"] #leftPane .item.objectiveL:hover .flashPlus{ display:grid !important; }
+
+
+/* Left-edge hot track corridor for Objectives mode */
+#leftPane .list { overflow: visible; }
+.objectiveL .flashPlus{
+  position:absolute; top:50%; transform:translateY(-50%);
+  right:-14px; z-index: 5000;
+}
+
+
+/* Left objective plus: hidden by default; shown only on hovered/active row */
+.objectiveL .flashPlus{ display:none; position:absolute; top:50%; transform:translateY(-50%); right:-14px; z-index:5000; }
+.objectiveL.showPlusL .flashPlus{ display:grid; }
+
+
+/* === Neon Navigate Arrow (top-right) === */
+#navigate_to_Performance_page{
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 26px;               /* bigger arrow */
+  cursor: pointer;
+  color: #39ff14;                 /* neon green */
+  text-shadow: 0 0 6px #39ff14, 0 0 12px #39ff14, 0 0 24px #39ff14;
+  z-index: 101;                   /* above top bar contents */
+  transition: transform .15s ease;
+}
+
+/* Give the theme toggle breathing room so it never collides with the arrow */
+.themeToggle{ margin-right: 44px; }
+
+/* Hover: larger + flashing */
+#navigate_to_Performance_page:hover{
+  transform: translateY(-50%) scale(1.18);
+  animation: neonPulse .9s infinite alternate;
+}
+
+@keyframes neonPulse{
+  from { text-shadow: 0 0 8px #39ff14, 0 0 16px #39ff14, 0 0 22px #39ff14; }
+  to   { text-shadow: 0 0 14px #39ff14, 0 0 28px #39ff14, 0 0 44px #39ff14; }
+}
+
+/* Optional: tune for light theme contrast */
+:root[data-theme="light"] #navigate_to_Performance_page{
+  color: #00c853;
+  text-shadow: 0 0 6px #00c853, 0 0 12px #00c853, 0 0 24px #00c853;
+}
+
+/* === Save Workbook Icon (Excel style) === */
+#Save_Workbook{
+  /* inline in the header next to the title */
+  position: static;          /* <— remove absolute pinning */
+  top: auto; right: auto;    /* <— neutralize old values (defensive) */
+  margin-right: 8px;         /* space before the title */
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  transition: transform .2s ease, filter .2s ease;
+  filter: drop-shadow(0 0 8px rgba(57,168,255,.5));
+}
+#Save_Workbook svg{ width:32px; height:32px; display:block; } /* keeps size tidy */
+#Save_Workbook:hover{
+  transform: scale(1.12);
+  filter: drop-shadow(0 0 14px #39a8ff) brightness(1.2);
+}
+
+.grid {
+      /* existing: column-gap:200px; ... */
+      --gap: 200px;
+      --leftPaneW: 1fr;            /* will be set to a pixel value after first drag */
+      display: grid;
+      grid-template-columns: var(--leftPaneW) 1fr;  /* right column auto-fills */
+      column-gap: var(--gap);
+      position: relative;
+    }
+
+    /* the draggable hot area on the right edge of the left pane */
+    #leftPane { position: relative; }
+    #leftResizeHandle {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 10px;                 /* comfy grab zone */
+      height: 100%;
+      cursor: ew-resize;           /* ⇔ like in your screenshot */
+      background: transparent;
+    }
+
+#leftResizeHandle::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-right: 1px solid var(--border);
+    opacity: .35;
+    pointer-events: none;
+  }
+
+/* links get a transition by default */
+.link, svg line, .connection, svg path {
+  transition: opacity 0.25s ease;
+  opacity: 1;
+}
+
+/* while dragging, force-fade links and disable hitboxes */
+body.dragging .link,
+body.dragging svg line,
+body.dragging .connection,
+body.dragging svg path {
+  opacity: 0 !important;       /* beats inline styles */
+  pointer-events: none !important;
+}
+
+
+</style>
+</head>
+<body>
+<div class="top">
+  <h2 style="margin:0; display:flex; gap:.5rem; align-items:center;">
+    <span>Portfolio Alignment:</span>
+    <span id="Root_Org_Name" class="editableLabel" title="Click or double-click to rename">My Organisation</span>
+  </h2>
+  <button id="themeToggle" class="themeToggle" title="Toggle theme" aria-label="Toggle theme"><span class="sun" aria-hidden="true">☀️</span><span class="moon" aria-hidden="true">🌙</span></button>
+  <span id="navigate_to_Performance_page" title="Go to Performance Page">➜</span>
+</div>
+
+<div class="headerRow">
+  <span>Link</span>
+  <div class="segToggle">
+    <button id="modePerf" class="active">Performance-metrics</button>
+    <button id="modeObj">Objectives</button>
+  </div>
+  <span>in portfolio</span>
+  <select id="leftPortfolioSelect"></select>
+  <span>to objectives in portfolio</span>
+  <select id="rightPortfolioSelect"></select>
+
+  <!-- 👇 New flex wrapper for both pills -->
+  <div style="display: flex; align-items: center; gap: 0.8rem; margin-left: auto;">
+    <div class="viewEditPill" id="managePortfolios">
+      <span>View &amp; Edit</span><span class="pen"></span>
+    </div>
+    <div class="viewEditPill" id="resetApp">
+      <span>Reset</span>
+    </div>
+  </div>
+</div>
+
+<svg class="links" id="linkLayer"></svg>
+
+<!-- Create Portfolio modal -->
+<div id="createPortfolioOverlay" class="confirmOverlay">
+  <div class="confirmBox">
+    <h4>Create portfolio</h4>
+    <div><label>Provide the portfolio's name:</label></div>
+    <input id="newPortfolioName" type="text" style="width:100%;margin-top:.4rem;background:#0b1526;border:1px solid #29446d;color:#e9f2ff;border-radius:8px;padding:.35rem .5rem" list="portfolioHints" placeholder="Start typing...">
+    <datalist id="portfolioHints">
+      <option>R&amp;D</option><option>R&amp;D + OPs</option><option>R&amp;D + Operations</option><option>R&amp;D + Commercial</option>
+      <option>Commercial</option><option>Operations</option><option>Sustain</option><option>New Adventure</option><option>Market Extension</option>
+      <option>NPD</option><option>NPI</option><option>New Prod Intro</option><option>New Prod Dev</option>
+      <option>Digital</option><option>Digital Transformation</option><option>Digital Platform</option>
+      <option>Proc</option><option>Procurement</option>
+      <option>Sustainability</option><option>Innovation</option>
+      <option>IT</option><option>IT Operations</option>
+      <option>Compliance &amp; Risk</option><option>Customer Success</option><option>Marketing</option>
+      <option>Data Analytics</option><option>Venture</option><option>R&amp;D Investments</option>
+    </datalist>
+    <div class="confirmBtns" style="margin-top:.8rem">
+      <button id="createCancel">Cancel</button>
+      <button id="createSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Manage Portfolios modal -->
+<div id="manageOverlay" class="confirmOverlay">
+  <div class="confirmBox">
+    <h4>View &amp; Edit Portfolios</h4>
+    <div id="mgrList" style="max-height:50vh;overflow:auto;margin-top:.5rem"></div>
+    <div class="confirmBtns">
+      <button id="mgrCancel">Cancel</button>
+      <button id="mgrSave">Save</button>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+<div class="grid">
+  <section class="pane" id="leftPane">
+    <h3 style="display:flex;align-items:center;gap:.5rem">
+      <span id="leftPaneTitlePrefix">Metrics</span>
+      (<span id="leftPaneTitleLabel" class="editableLabel">Portfolio A</span>)
+      <span id="balanceFlag" class="flag">!</span>
+      <span id="totalBadgeLeft" class="totalBadge" style="display:none">0%</span>
+    </h3>
+    <div class="list" id="leftList"></div>
+    <div class="plusRow"><button id="addMetric" class="icon" title="Add metric">＋</button></div>
+
+    <!-- handle goes here, last in leftPane -->
+    <div id="leftResizeHandle" aria-hidden="true"></div>
+  </section>
+
+  <section class="pane" id="rightPane">
+    <h3 style="display:flex;align-items:center;gap:.5rem">
+      Objectives (<span id="rightPaneTitleLabel" class="editableLabel">Portfolio B</span>)
+      <span id="totalBadge" class="totalBadge">0%</span>
+    </h3>
+    <div class="list" id="rightList"></div>
+    <div class="plusRow"><button id="addObjective" class="icon" title="Add objective">＋</button></div>
+  </section>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<section class="jsonFooter">
+  <h3>Current Objective Alignment State</h3>
+  <pre id="jsonView"></pre>
+</section>
+
+<div id="strengthModal" class="linkModal">
+  <h4>Link Strength</h4>
+  <span class="vNum" id="strengthValue">5%</span>
+  <div class="vWrap"><div class="sliderBox">
+    <input id="strengthSlider" class="vert" type="range" min="0" max="100" step="5" value="5"/>
+  </div></div>
+</div>
+
+<div id="confirmOverlay" class="confirmOverlay">
+  <div class="confirmBox">
+    <h4>Delete link?</h4>
+    <div id="confirmText">Delete?</div>
+    <div class="confirmBtns">
+      <button id="confirmCancel">Cancel</button>
+      <button id="confirmOk" class="danger">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Name conflict modal -->
+<div id="nameConflictOverlay" class="confirmOverlay">
+  <div class="confirmBox">
+    <h4>Portfolio name must be unique</h4>
+    <div id="nameConflictText">A portfolio with this name already exists. Choose a different name.</div>
+    <div class="confirmBtns">
+      <button id="nameConflictCancel">Cancel</button>
+      <button id="nameConflictRename">Rename</button>
+    </div>
+  </div>
+</div>
+
+<!-- Portfolio Picker -->
+<div id="portfolioPickerOverlay" class="confirmOverlay" style="display:none">
+  <div class="confirmBox">
+    <h4>Confirm the portfolio you intend to categorise next:</h4>
+    <div style="margin-top:.5rem">
+      <label style="display:block; margin-bottom:.35rem;">Select a portfolio:</label>
+      <select id="portfolioPickerSelect" style="width:100%; background:#0b1526; border:1px solid #29446d; color:#e9f2ff; border-radius:10px; padding:.45rem .6rem"></select>
+    </div>
+    <div class="confirmBtns" style="margin-top:.9rem">
+      <button id="ppCancel">Cancel</button>
+      <button id="ppNext">Next</button>
+    </div>
+  </div>
+</div>
+
+<!-- Portfolio Confirmation -->
+<div id="portfolioConfirmOverlay" class="confirmOverlay" style="display:none">
+  <div class="confirmBox">
+    <h4>Confirm the portfolio you intend to categorise next:</h4>
+    <div id="portfolioConfirmBody" style="margin-top:.5rem; line-height:1.55"></div>
+    <div class="confirmBtns" style="margin-top:.9rem">
+      <button id="pcRedo">Re-do selection</button>
+      <button id="pcCancel" class="danger">Cancel</button>
+      <button id="pcConfirm">Confirm &amp; Continue</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="err" id="err"></div>
+
+<script>
+
+
+
+
+
+// ================== Objective slider color binding ==================
+// Colors objective weight sliders using state.colorScale (if present).
+// Works on first render, navigation-in, refresh, and live as the user drags.
+
+(function(){
+  // Try a few likely selectors—adjust to match your DOM if needed
+  const SLIDER_SELECTORS = [
+    'input[type="range"][data-role="objective-weight"]',
+    'input[type="range"].objective-weight',
+    'input[type="range"].objective-slider'
+  ];
+
+  // Init on DOM ready and also on page show (when navigating back/forward)
+  window.addEventListener('DOMContentLoaded', applyColorsToAllObjectiveSliders);
+  window.addEventListener('pageshow', applyColorsToAllObjectiveSliders);
+
+  // If your app re-renders dynamically, you can call:
+  //   window.recolorObjectiveSliders()
+  // after updates. We expose it here for convenience.
+  window.recolorObjectiveSliders = applyColorsToAllObjectiveSliders;
+
+  // Also watch DOM mutations to catch sliders inserted later
+  let mo;
+  try {
+    mo = new MutationObserver((muts) => {
+      let needs = false;
+      for (const m of muts) {
+        if (m.addedNodes && m.addedNodes.length) { needs = true; break; }
+        if (m.type === 'attributes' && m.target && m.target.matches?.(SLIDER_SELECTORS.join(','))) {
+          needs = true; break;
+        }
+      }
+      if (needs) applyColorsToAllObjectiveSliders();
+    });
+    mo.observe(document.documentElement, { childList: true, subtree: true, attributes: true });
+  } catch(_) {}
+
+  // -------- Core functions --------
+
+  function applyColorsToAllObjectiveSliders(){
+    const scaleObj = (window.colorScale && typeof window.colorScale === 'object') ? window.colorScale : null;
+    if (!scaleObj) return; // silently skip if no colorScale
+
+    const scale = normalizeScale(scaleObj); // [{t,color}, ...] with t in [0,1], ascending
+    const sliders = document.querySelectorAll(SLIDER_SELECTORS.join(','));
+    sliders.forEach(sl => colorizeSlider(sl, scale));
+
+    // Ensure live updates while dragging
+    sliders.forEach(sl => {
+      if (!sl.__colored) {
+        sl.addEventListener('input', () => colorizeSlider(sl, scale));
+        sl.addEventListener('change', () => colorizeSlider(sl, scale));
+        sl.__colored = true;
+      }
+    });
+  }
+
+  function normalizeScale(obj){
+    // obj keys are "0.00","0.05",...,"1.00"; convert to sorted numeric thresholds [0..1]
+    const arr = Object.keys(obj)
+      .map(k => ({ t: clamp01(parseFloat(k)), color: String(obj[k]) }))
+      .filter(x => Number.isFinite(x.t))
+      .sort((a,b) => a.t - b.t);
+    if (!arr.length) {
+      // minimal fallback scale
+      return [{t:0, color:'#8a90a0'}, {t:1, color:'#ff0000'}];
+    }
+    // Ensure 0 and 1 exist
+    if (arr[0].t > 0) arr.unshift({ t:0, color: arr[0].color });
+    if (arr[arr.length-1].t < 1) arr.push({ t:1, color: arr[arr.length-1].color });
+    return arr;
+  }
+
+  function colorFor01(v01, scale){
+    // pick the last threshold <= v01
+    for (let i = scale.length - 1; i >= 0; i--){
+      if (v01 >= scale[i].t) return scale[i].color;
+    }
+    return scale[0].color;
+  }
+
+  function colorizeSlider(el, scale){
+    // weight comes from slider value, normalized by its own max if present
+    const max = Number.isFinite(parseFloat(el.max)) ? Math.max(1, parseFloat(el.max)) : 100;
+    const val = clamp01((Number(el.value) || 0) / max);
+    const pct = Math.round(val * 100);
+    const col = colorFor01(val, scale);
+
+    // Prefer accent-color when available (modern browsers)
+    try { el.style.accentColor = col; } catch(_){}
+
+    // Cross-browser filled-track styling using a gradient
+    // (works on WebKit/Blink; harmless elsewhere)
+    const trackBg = `linear-gradient(to right, ${col} 0%, ${col} ${pct}%, #e0e5ec ${pct}%, #e0e5ec 100%)`;
+    el.style.background = trackBg;
+
+    // Optional: set a CSS var for custom skins
+    el.style.setProperty('--oa-slider-color', col);
+  }
+
+  function clamp01(x){ return x < 0 ? 0 : (x > 1 ? 1 : x); }
+})();
+
+
+
+
+
+
+
+
+
+
+
+// === Silent auto-save / auto-load of page state ===
+// File name requested (used in OPFS or as key in fallback)
+const OA_STATE_FILENAME = 'Org-OBJ-Metric-JASON-BLOB.json';
+
+// Public API you can call elsewhere if needed:
+window.OAStatePersistence = { saveNow, loadOnStartup };
+
+// Kick off load ASAP on first render (open or navigation to this page)
+document.addEventListener('DOMContentLoaded', loadOnStartup);
+
+// Save when the page is being hidden (covers navigate-away, tab switch, close)
+// and also as a final guard on beforeunload.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') { saveNow(); }
+});
+window.addEventListener('pagehide', () => { saveNow(); });
+window.addEventListener('beforeunload', () => { saveNow(); });
+
+
+// --- Heartbeat autosave (hash-guarded, silent) ---
+(function(){
+  let lastHash = null;
+  setInterval(() => {
+    try {
+      const snap = buildCurrentStateSnapshot();
+      if (!snap) return;
+      const json = JSON.stringify(snap);
+      const h = simpleHash(json);
+      if (h !== lastHash) {
+        lastHash = h;
+        // fire-and-forget; saveNow is already hash-protected internally too
+        saveNow();
+      }
+    } catch(_) {}
+  }, 3000); // every 3s; tweak if you want
+})();
+
+
+
+
+let _saveInFlight = false;
+let _lastSavedHash = null;
+
+// ---- Load on first render / navigation-in ----
+async function loadOnStartup() {
+  try {
+    // Try OPFS first
+    const state = await readFromOPFS(OA_STATE_FILENAME);
+    if (state) {
+      applyLoadedState(state);
+      return;
+    }
+  } catch (e) {
+    // fall through to localStorage
+    console.warn('OPFS load failed or not available; falling back to localStorage.', e);
+  }
+
+  // Fallback: localStorage
+  try {
+    const raw = localStorage.getItem(OA_STATE_FILENAME);
+    if (raw) {
+      const state = JSON.parse(raw);
+      applyLoadedState(state);
+    }
+  } catch (e) {
+    console.warn('localStorage load failed or JSON corrupted. Using defaults.', e);
+  }
+}
+
+// ---- Save now (debounced by content hash; silent; overwrite) ----
+async function saveNow() {
+  if (_saveInFlight) return;
+  try {
+    const snapshot = buildCurrentStateSnapshot();
+    if (!snapshot) return;
+
+    // Skip if unchanged since last save
+    const json = JSON.stringify(snapshot);
+    const hash = simpleHash(json);
+    if (hash === _lastSavedHash) return;
+
+    _saveInFlight = true;
+
+    // Prefer OPFS
+    let saved = false;
+    try {
+      await writeToOPFS(OA_STATE_FILENAME, json);
+      saved = true;
+    } catch (e) {
+      console.warn('OPFS save failed; falling back to localStorage.', e);
+    }
+
+    if (!saved) {
+      try {
+        localStorage.setItem(OA_STATE_FILENAME, json);
+        saved = true;
+      } catch (e) {
+        console.error('localStorage save failed.', e);
+      }
+    }
+
+    if (saved) _lastSavedHash = hash;
+  } finally {
+    _saveInFlight = false;
+  }
+}
+
+// ---- Helpers: read/write OPFS (Origin Private File System) ----
+async function getOPFSRoot() {
+  if (!('storage' in navigator) || !navigator.storage.getDirectory) {
+    throw new Error('OPFS not supported in this browser.');
+  }
+  return await navigator.storage.getDirectory();
+}
+
+async function writeToOPFS(filename, text) {
+  const root = await getOPFSRoot();
+  // create: true ensures overwrite/new without prompts
+  const handle = await root.getFileHandle(filename, { create: true });
+  const writable = await handle.createWritable();
+  await writable.write(text);
+  await writable.close();
+}
+
+async function readFromOPFS(filename) {
+  const root = await getOPFSRoot();
+  // If it doesn't exist, this throws—so guard it:
+  let handle;
+  try {
+    handle = await root.getFileHandle(filename, { create: false });
+  } catch (_) {
+    return null;
+  }
+  const file = await handle.getFile();
+  const text = await file.text();
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    console.warn('Saved JSON is corrupted; ignoring.', e);
+    return null;
+  }
+}
+
+function buildCurrentStateSnapshot() {
+  try {
+    const UI = window.UI || {};
+    const OA = window.OA || {};
+    const colorScale = (window.colorScale && typeof window.colorScale === 'object')
+      ? window.colorScale
+      : null;
+
+    const state = { UI, OA };
+    if (colorScale) state.colorScale = colorScale;
+
+    // NEW: persist portfolio IDs alongside UI
+    state["Portfolio IDs"] = (UI && Array.isArray(UI.portfolios))
+      ? UI.portfolios.map(getPortfolioId)
+      : [];
+
+try {
+      state["Root Org Name"] = (typeof getOrgName === 'function')
+        ? getOrgName()
+        : (document.getElementById('Root_Org_Name')?.textContent || 'My Organisation');
+    } catch(_) {
+      state["Root Org Name"] = 'My Organisation';
+    }
+
+    return state;
+  } catch (e) {
+    console.error('Failed to capture snapshot.', e);
+    return null;
+  }
+}
+
+// ---- Apply loaded state and re-render (deep-merge instead of reassign) ----
+function applyLoadedState(state) {
+  if (!state || typeof state !== 'object') return;
+
+  try {
+    const sUI = state.UI || {};
+    const sOA = state.OA || {};
+
+    // If window.UI/OA already exist (they do), mutate them in place so the IIFE-local
+    // variables that reference the same objects observe the new content.
+    if (window.UI && typeof window.UI === 'object') {
+      deepMerge(window.UI, sUI);
+    } else {
+      window.UI = sUI;
+    }
+
+    if (window.OA && typeof window.OA === 'object') {
+      deepMerge(window.OA, sOA);
+    } else {
+      window.OA = sOA;
+    }
+
+// --- Root Org Name restore/persist ---
+try {
+  const savedOrg = state["Root Org Name"];
+  if (savedOrg && typeof savedOrg === 'string') {
+    // apply to UI + sessionStorage + title using your existing helper
+    if (typeof setOrgName === 'function') {
+      setOrgName(savedOrg); // updates DOM/title/sessionStorage
+    } else {
+      const el = document.getElementById('Root_Org_Name');
+      if (el) el.textContent = savedOrg;
+      try { document.title = "Portfolio Alignment: " + savedOrg; } catch(_) {}
+    }
+  }
+} catch(_) {}
+
+
+// --- Preserve saved Portfolio IDs if they exist ---
+if (state["Portfolio IDs"] && Array.isArray(state["Portfolio IDs"])) {
+  window.PortfolioIDs = state["Portfolio IDs"].slice();
+  console.log("Loaded existing Portfolio IDs:", window.PortfolioIDs);
+} else {
+  // If none were saved before, generate them once and persist
+  window.PortfolioIDs = (state.UI?.portfolios || []).map(getPortfolioId);
+  state["Portfolio IDs"] = window.PortfolioIDs.slice();
+  if (window.OAStatePersistence?.saveNow) window.OAStatePersistence.saveNow();
+}
+
+
+ensureDefaultColorScale(window);
+// If a saved colorScale exists, adopt it at top-level state
+if (state.colorScale && typeof state.colorScale === 'object') {
+  window.colorScale = { ...state.colorScale };
+}
+
+
+
+    // Try to re-render using whatever hooks exist in this build
+    try { if (typeof updateJson === 'function') updateJson(); } catch(_){}
+    try {
+      if (typeof render === 'function') render();
+      else if (typeof renderApp === 'function') renderApp();
+      else if (typeof renderFromState === 'function') renderFromState(window.UI, window.OA);
+      else if (typeof initObjectiveAlignment === 'function') initObjectiveAlignment();
+    } catch(_){}
+  } catch (e) {
+    console.error('Failed to apply loaded state; using defaults.', e);
+  }
+}
+
+// Simple deep merge (objects/arrays). Arrays are replaced; objects are merged recursively.
+function deepMerge(target, source) {
+  if (!source || typeof source !== 'object') return;
+
+  Object.keys(source).forEach(key => {
+    const sVal = source[key];
+    const tVal = target[key];
+
+    if (Array.isArray(sVal)) {
+      target[key] = sVal.slice(); // replace arrays
+    } else if (sVal && typeof sVal === 'object') {
+      if (!tVal || typeof tVal !== 'object' || Array.isArray(tVal)) {
+        target[key] = {};
+      }
+      deepMerge(target[key], sVal);
+    } else {
+      target[key] = sVal;
+    }
+  });
+}
+
+// --- Default colorScale insertion during first render ---
+async function ensureDefaultColorScale(state) {
+  try {
+    if (!state || typeof state !== 'object') return;
+
+    const defaultColorScale = {
+      "0.00": "#8a90a0",
+      "0.05": "#39a8ff",
+      "0.10": "hsl(198.94736842105263 100% 55%)",
+      "0.15": "hsl(187.89473684210526 100% 55%)",
+      "0.20": "hsl(176.8421052631579 100% 55%)",
+      "0.25": "hsl(165.78947368421052 100% 55%)",
+      "0.30": "hsl(154.73684210526318 100% 55%)",
+      "0.35": "hsl(143.68421052631578 100% 55%)",
+      "0.40": "hsl(132.6315789473684 100% 55%)",
+      "0.45": "hsl(121.57894736842105 100% 55%)",
+      "0.50": "hsl(110.52631578947368 100% 55%)",
+      "0.55": "hsl(99.47368421052632 100% 55%)",
+      "0.60": "hsl(88.42105263157896 100% 55%)",
+      "0.65": "hsl(77.36842105263159 100% 55%)",
+      "0.70": "hsl(66.31578947368423 100% 55%)",
+      "0.75": "hsl(55.26315789473685 100% 55%)",
+      "0.80": "hsl(44.21052631578947 100% 55%)",
+      "0.85": "hsl(33.15789473684212 100% 55%)",
+      "0.90": "hsl(22.105263157894736 100% 55%)",
+      "0.95": "hsl(11.052631578947379 100% 55%)",
+      "1.00": "hsl(0 100% 55%)"
+    };
+
+    const current = state.colorScale;
+    const needsDefault = !current || typeof current !== 'object' || !Object.keys(current).length;
+
+    if (needsDefault) {
+      console.log('Adding default colorScale to state...');
+      state.colorScale = { ...defaultColorScale };
+      window.colorScale = state.colorScale; // make sure top-level is set
+      await saveNow();                      // persist via your existing saver
+      console.log('Default colorScale persisted.');
+    } else {
+      window.colorScale = current;          // adopt the saved one
+      console.log('Existing colorScale detected — keeping it.');
+    }
+  } catch (err) {
+    console.error('ensureDefaultColorScale() failed:', err);
+  }
+}
+
+
+
+// ---- Tiny non-crypto content hash to avoid redundant writes ----
+function simpleHash(str) {
+  let h = 0, i = 0, len = str.length;
+  while (i < len) { h = (h << 5) - h + str.charCodeAt(i++) | 0; }
+  return h;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(function(){
+"use strict";
+var errBox=document.getElementById('err');
+window.addEventListener('error',function(e){ try{ errBox.textContent='Script error: '+(e.message||'unknown'); errBox.style.display='block'; }catch(_){}});
+
+/* ---------- core state ---------- */
+var ROOT={pf1:{portfolio:{id:"pf1",name:"My Org"}, ObjectiveAlignment:{metrics:[{id:"m1",label:"Metric 1",active:true}], objectives:[{id:"o1",label:"Objective 1",active:true,weight:100}], links:[]}}};
+var OA=ROOT.pf1.ObjectiveAlignment;
+var UI={portfolios:['Portfolio A','Portfolio B'],mode:'performance',leftPortfolio:'Portfolio A',rightPortfolio:'Portfolio A'};
+
+/* ---------- theme (dark/light) ---------- */
+function getTheme(){ try{ return sessionStorage.getItem('oa_theme') || 'dark'; }catch(_){ return 'dark'; } }
+function setTheme(t){
+  try{ sessionStorage.setItem('oa_theme', t); }catch(_){}
+  document.documentElement.setAttribute('data-theme', t);
+  var btn = document.getElementById('themeToggle');
+  if(btn){
+    btn.setAttribute('aria-pressed', String(t==='light'));
+    btn.title = t==='light' ? 'Switch to dark' : 'Switch to light';
+  }
+}
+function initTheme(){
+  var t = getTheme(); setTheme(t);
+  var btn = document.getElementById('themeToggle');
+  if(btn && !btn.__wired){
+    btn.__wired = true;
+    btn.addEventListener('click', function(){
+      var next = (getTheme()==='dark') ? 'light' : 'dark';
+      setTheme(next); drawSchedule();
+    });
+  }
+}
+
+
+// STEP 4: Call recolor functions whenever user toggles theme via UI
+(function wireThemeRecolorHooks(){
+  // Helper calls (defined elsewhere in your file)
+  function triggerRecolor(){
+    try { if (typeof window.recolorLinks === 'function') window.recolorLinks(); } catch(_) {}
+    try { if (typeof window.recolorObjectiveSliders === 'function') window.recolorObjectiveSliders(); } catch(_) {}
+  }
+
+  // Known controls
+  var els = [];
+  var btn = document.getElementById('themeToggle'); // you already have this in initTheme()
+  if (btn) els.push(btn);
+
+  // Extra fallbacks (if you add other switches later)
+  els = els.concat(Array.from(document.querySelectorAll(
+    '.styleSwitch, #styleSwitch, .themeToggle, [data-theme-switch]'
+  )));
+
+  // Dedup & wire
+  els = Array.from(new Set(els.filter(Boolean)));
+  els.forEach(function(el){
+    if (el.__recolorWired) return;
+    el.__recolorWired = true;
+
+    // React to both click and change (covers buttons & selects)
+    ['click','change'].forEach(function(evt){
+      el.addEventListener(evt, function(){
+        // Give your existing setTheme() a tick to flip data-theme
+        requestAnimationFrame(triggerRecolor);
+      });
+    });
+  });
+})();
+
+// STEP 5: MutationObservers to auto-recolor when data-theme (or classes) change
+(function watchThemeAndClasses(){
+  function triggerRecolor(){
+    try { if (typeof window.recolorLinks === 'function') window.recolorLinks(); } catch(_) {}
+    try { if (typeof window.recolorObjectiveSliders === 'function') window.recolorObjectiveSliders(); } catch(_) {}
+  }
+
+  // Watch <html data-theme="..."> flips done by setTheme()
+  try {
+    var moTheme = new MutationObserver(function(muts){
+      for (var i=0;i<muts.length;i++){
+        var m = muts[i];
+        if (m.type === 'attributes' && m.attributeName === 'data-theme') {
+          triggerRecolor();
+          break;
+        }
+      }
+    });
+    moTheme.observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });
+  } catch(_) {}
+
+  // Optional: if you also flip body classes on mode changes, watch body class changes
+  try {
+    var moBody = new MutationObserver(function(muts){
+      for (var i=0;i<muts.length;i++){
+        var m = muts[i];
+        if (m.type === 'attributes' && m.attributeName === 'class') {
+          triggerRecolor();
+          break;
+        }
+      }
+    });
+    moBody.observe(document.body, { attributes:true, attributeFilter:['class'] });
+  } catch(_) {}
+})();
+
+/* persistence */
+function save(){ try{ sessionStorage.setItem('objective_alignment_state',JSON.stringify(ROOT)); }catch(_){ } updateJson(); }
+function saveUI(){ try{ sessionStorage.setItem('oa_ui_state',JSON.stringify(UI)); }catch(_){ } }
+/* ---------- root org name ---------- */
+var ORG_DEFAULT = "My Organisation";
+function getOrgName(){ try{ var v=sessionStorage.getItem('oa_org_name'); return (v&&v.trim())?v.trim():ORG_DEFAULT; }catch(_){ return ORG_DEFAULT; } }
+function setOrgName(name){
+  var v=(name||"").trim()||ORG_DEFAULT;
+  try{ sessionStorage.setItem('oa_org_name', v); }catch(_){}
+  var el=byId('Root_Org_Name'); if(el) el.textContent=v;
+  try{ document.title="Portfolio Alignment: "+v; }catch(_){}
+ // NEW: reflect in live JSON panel
+  try{ if (typeof updateJson === 'function') updateJson(); }catch(_){}
+
+  // NEW: persist to OPFS/localStorage immediately
+  try{
+    if (window.OAStatePersistence && typeof window.OAStatePersistence.saveNow === 'function'){
+      window.OAStatePersistence.saveNow();
+    }
+  }catch(_){}
+}
+function wireOrgName(){
+  var el=byId('Root_Org_Name'); if(!el||el.__wired) return; el.__wired=true;
+  setOrgName(getOrgName());
+  function beginEdit(){ if(el.isContentEditable) return; el.contentEditable="true"; var r=document.createRange(); r.selectNodeContents(el); r.collapse(false); var s=window.getSelection(); s.removeAllRanges(); s.addRange(r); el.focus(); }
+  el.addEventListener('click',beginEdit); el.addEventListener('dblclick',beginEdit);
+  var last=getOrgName();
+  el.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); commit(); } else if(e.key==='Escape'){ e.preventDefault(); el.textContent=last; el.blur(); } });
+  function commit(){ var v=(el.textContent||"").trim(); if(!v) v=ORG_DEFAULT; last=v; el.contentEditable="false"; setOrgName(v); try { if (window.OAStatePersistence && typeof window.OAStatePersistence.saveNow === 'function') {
+      window.OAStatePersistence.saveNow();
+    }
+  } catch(_) {} }
+  el.addEventListener('blur',commit);
+}
+
+/* ---- restore ---- */
+(function restore(){
+  try{ var s=sessionStorage.getItem('objective_alignment_state'); if(s){ ROOT=JSON.parse(s); OA=ROOT.pf1.ObjectiveAlignment; } }catch(_){}
+  try{ var t=sessionStorage.getItem('oa_ui_state'); if(t){ UI=Object.assign(UI, JSON.parse(t)); } }catch(_){}
+  if(!Array.isArray(UI.portfolios)||UI.portfolios.length<2) UI.portfolios=['Portfolio A','Portfolio B'];
+  if(!UI.leftPortfolio) UI.leftPortfolio='Portfolio A';
+  if(!UI.rightPortfolio) UI.rightPortfolio=UI.leftPortfolio;
+  if(UI.mode==='performance'){
+    UI.rightPortfolio = UI.leftPortfolio; UI.rightPortfolio = UI.leftPortfolio; }
+  if(UI.mode==='objectives' && UI.leftPortfolio===UI.rightPortfolio){
+    var alt=UI.portfolios.find(function(p){return p!==UI.leftPortfolio;}); if(alt) UI.rightPortfolio=alt;
+  }
+  // New registries to keep independence in Objectives mode
+  if(!OA.objectivesByPortfolio) OA.objectivesByPortfolio=Object.create(null);
+  if(!OA.metricsByPortfolio) OA.metricsByPortfolio=Object.create(null);
+  if(!OA.perfLinksByPortfolio) OA.perfLinksByPortfolio=Object.create(null);
+  if(!OA.objectivesLeftByPortfolio) OA.objectivesLeftByPortfolio=Object.create(null);
+  if(!OA.ooLinksByPair) OA.ooLinksByPair=Object.create(null);
+})();
+
+
+
+// 👇 Add these two lines once, right after restore() is done
+window.UI = UI;
+window.OA = OA;
+
+
+
+
+
+/* helpers */
+function $(s){return document.querySelector(s)} function $all(s){return [].slice.call(document.querySelectorAll(s))}
+function byId(id){return document.getElementById(id)}
+function updateJson(){
+  byId('jsonView').textContent = JSON.stringify(
+    {
+      UI: UI,
+      OA: OA,
+      colorScale: (window.colorScale || undefined),
+      "Portfolio IDs": (UI && Array.isArray(UI.portfolios)) ? UI.portfolios.map(getPortfolioId) : [],
+      "Root Org Name": (typeof getOrgName === 'function')
+        ? getOrgName()
+        : (byId('Root_Org_Name')?.textContent || 'My Organisation')
+    },
+    null,
+    2
+  );
+}
+
+function isDuplicateName(list, name, skipId){ var key=(name||'').trim().toLowerCase(); for(var i=0;i<list.length;i++){var it=list[i]; if(((it.label||'').trim().toLowerCase()===key) && (!skipId || it.id!==skipId)) return true;} return false; }
+function uniqueName(list, base){ var names=list.map(x=>(x.label||'').trim().toLowerCase()); var cand=base; var n=2; while(names.includes(cand.trim().toLowerCase())){ cand=base+' '+n; n++; } return cand; }
+function portfolioExists(name, ignoreName){ var nm=(name||'').trim().toLowerCase(); var ign=(ignoreName||'').trim().toLowerCase(); return UI.portfolios.some(function(p){ var q=(p||'').trim().toLowerCase(); return q===nm && q!==ign; }); }
+
+function metricById(id){ return (OA.metrics||[]).find(m=>m.id===id) }
+function objectiveById(id){ return (OA.objectives||[]).find(o=>o.id===id) }
+function metricLinks(id){ return (OA.links||[]).filter(L=>L.metricId===id) }
+function metricStrengthTotal(id){ return metricLinks(id).reduce((a,b)=>a+(b.strength||0),0) }
+function metricHasCapacity(id){ return metricStrengthTotal(id)<100 }
+function oIsLinkedTo(m,o){ return !!(OA.links||[]).find(L=>L.metricId===m.id && L.objectiveId===o.id) }
+
+/* ---- Objectives mode independence helpers ---- */
+function pairKey(L,R){ return (L||'') + '→' + (R||''); }
+function getRightObjectives(){
+  const p = UI.rightPortfolio;
+  if (!OA.objectivesByPortfolio[p]) OA.objectivesByPortfolio[p] = [{id:'o1',label:'Objective 1',active:true,weight:0}];
+  return OA.objectivesByPortfolio[p];
+}
+function setRightObjectives(list){ OA.objectivesByPortfolio[UI.rightPortfolio] = list; }
+function getLeftObjectives(){
+  const p = UI.leftPortfolio;
+  // Migrate legacy left store into unified per-portfolio objectives list
+  if (!OA.objectivesByPortfolio[p]) {
+    if (OA.objectivesLeftByPortfolio && OA.objectivesLeftByPortfolio[p]) {
+      OA.objectivesByPortfolio[p] = OA.objectivesLeftByPortfolio[p];
+      try { delete OA.objectivesLeftByPortfolio[p]; } catch(_){ OA.objectivesLeftByPortfolio[p]=null; }
+    } else {
+      OA.objectivesByPortfolio[p] = [{id:'o'+Date.now(),label:'Objective 1',active:true,weight:0}];
+    }
+  }
+  return OA.objectivesByPortfolio[p];
+}
+function setLeftObjectives(list){ OA.objectivesByPortfolio[UI.leftPortfolio] = list; }
+function getOOLinks(){
+  const k = pairKey(UI.leftPortfolio, UI.rightPortfolio);
+  if (!OA.ooLinksByPair[k]) OA.ooLinksByPair[k] = [];
+  return OA.ooLinksByPair[k];
+}
+var _setOOLinks = setOOLinks;
+function setOOLinks(list){ 
+// Fail-safe: prevent forward A→B if reverse B→A exists (Objectives only), styled modal
+try {
+  if (UI && UI.mode === 'objectives') {
+    var child  = UI.leftPortfolio;
+    var parent = UI.rightPortfolio;
+    if (child && parent) {
+      var keyFwd = (typeof pairKey==='function') ? pairKey(child, parent) : (String(child)+'→'+String(parent));
+      var keyRev = (typeof pairKey==='function') ? pairKey(parent, child) : (String(parent)+'→'+String(child));
+      var prevRev = (OA.ooLinksByPair && OA.ooLinksByPair[keyRev]) || [];
+      var incoming = Array.isArray(list) ? list : [];
+      var addingNow = incoming.length > 0;
+      if (addingNow && prevRev.length > 0) {
+        return promptReverseRelation(child, parent, function(){
+          try { delete OA.ooLinksByPair[keyRev]; } catch(_){}
+          try {
+            if (OA.relations && OA.relations.childToParents && OA.relations.childToParents[parent]){
+              delete OA.relations.childToParents[parent][child];
+              if (!Object.keys(OA.relations.childToParents[parent]).length){
+                delete OA.relations.childToParents[parent];
+              }
+            }
+          } catch(_){}
+          // proceed with commit after reverse
+          _setOOLinks(list);
+          try{
+            OA.ooLinksByPair[keyFwd] = (list||[]).slice();
+            if (!OA.relations) OA.relations = { childToParents: Object.create(null) };
+            if (!OA.relations.childToParents) OA.relations.childToParents = Object.create(null);
+            if (OA.ooLinksByPair[keyFwd].length){
+              if (!OA.relations.childToParents[child]) OA.relations.childToParents[child] = Object.create(null);
+              OA.relations.childToParents[child][parent] = true;
+            } else {
+              if (OA.relations.childToParents[child]){
+                delete OA.relations.childToParents[child][parent];
+                if (!Object.keys(OA.relations.childToParents[child]).length) delete OA.relations.childToParents[child];
+              }
+            }
+            if (typeof save==='function') save();
+            if (typeof drawSchedule==='function') drawSchedule();
+          }catch(_){}
+        }, function(){
+          // cancel -> roll back OA.ooLinks and abort
+          try {
+            OA.ooLinks = (OA.ooLinksByPair[keyFwd]||[]).slice();
+            if (typeof save==='function') save();
+            if (typeof drawSchedule==='function') drawSchedule();
+          } catch(_){}
+          return;
+        });
+      }
+    }
+  }
+} catch(_){}
+OA.ooLinksByPair[pairKey(UI.leftPortfolio, UI.rightPortfolio)] = list; }
+
+/* ---- Portfolio rename data migration ---- */
+function renamePortfolioData(oldName, newName){
+  if(!oldName || !newName || oldName===newName) return;
+  // Move objectives
+  if (OA.objectivesByPortfolio){
+    if (OA.objectivesByPortfolio[oldName] && !OA.objectivesByPortfolio[newName]){
+      OA.objectivesByPortfolio[newName] = OA.objectivesByPortfolio[oldName];
+      delete OA.objectivesByPortfolio[oldName];
+    }
+  }
+  // Move metrics
+  if (OA.metricsByPortfolio){
+    if (OA.metricsByPortfolio[oldName] && !OA.metricsByPortfolio[newName]){
+      OA.metricsByPortfolio[newName] = OA.metricsByPortfolio[oldName];
+      delete OA.metricsByPortfolio[oldName];
+    }
+  }
+  // Move performance links
+  if (OA.perfLinksByPortfolio){
+    if (OA.perfLinksByPortfolio[oldName] && !OA.perfLinksByPortfolio[newName]){
+      OA.perfLinksByPortfolio[newName] = OA.perfLinksByPortfolio[oldName];
+      delete OA.perfLinksByPortfolio[oldName];
+    }
+  }
+  // Rewrite objective-objective pair links keys
+  if (OA.ooLinksByPair){
+    var keys = Object.keys(OA.ooLinksByPair);
+    keys.forEach(function(k){
+      var parts = k.split('→'); var L = parts[0]||'', R = parts[1]||'';
+      var newL = (L===oldName) ? newName : L;
+      var newR = (R===oldName) ? newName : R;
+      var newKey = newL + '→' + newR;
+      if (newKey !== k){
+        // Merge if destination already exists
+        var src = OA.ooLinksByPair[k] || [];
+        var dst = OA.ooLinksByPair[newKey] || [];
+        OA.ooLinksByPair[newKey] = dst.concat(src);
+        delete OA.ooLinksByPair[k];
+      }
+    });
+  }
+}
+
+
+function purgeOoLinksForObjective(portfolioName, objectiveId){
+  if(!OA.ooLinksByPair) return;
+  var keys = Object.keys(OA.ooLinksByPair);
+  keys.forEach(function(k){
+    var parts = k.split('→'); var L = parts[0]||'', R = parts[1]||'';
+    var list = OA.ooLinksByPair[k] || [];
+    var before = list.length;
+    if (L === portfolioName) {
+      list = list.filter(function(Li){ return Li.leftObjectiveId !== objectiveId; });
+    }
+    if (R === portfolioName) {
+      list = list.filter(function(Li){ return Li.rightObjectiveId !== objectiveId; });
+    }
+    if (before !== list.length) {
+      OA.ooLinksByPair[k] = list;
+    }
+  });
+}
+
+
+function getPerfPortfolio(){ return UI.leftPortfolio; } // in performance, left==right
+function getMetrics(){
+  const p = getPerfPortfolio();
+  if(!OA.metricsByPortfolio[p]) OA.metricsByPortfolio[p] = [{id:'m1',label:'Metric 1',active:true}];
+  return OA.metricsByPortfolio[p];
+}
+function setMetrics(list){ OA.metricsByPortfolio[getPerfPortfolio()] = list; }
+function getPerfLinks(){
+  const p = getPerfPortfolio();
+  if(!OA.perfLinksByPortfolio[p]) OA.perfLinksByPortfolio[p] = [];
+  return OA.perfLinksByPortfolio[p];
+}
+function setPerfLinks(list){ OA.perfLinksByPortfolio[getPerfPortfolio()] = list; }
+
+
+/* header */
+function renderHeader(){
+  if(UI.mode==='performance'){
+    UI.rightPortfolio = UI.leftPortfolio; UI.rightPortfolio = UI.leftPortfolio; }
+  var l=byId('leftPortfolioSelect'), r=byId('rightPortfolioSelect');
+  function fill(sel, hide){ sel.innerHTML=''; UI.portfolios.forEach(function(p){ if(UI.mode==='objectives' && hide && p===hide) return; var o=document.createElement('option'); o.value=p; o.textContent=p; sel.appendChild(o);}); var plus=document.createElement('option'); plus.value='__ADD__'; plus.textContent='＋ Add portfolio'; sel.appendChild(plus); }
+  fill(l, UI.rightPortfolio); fill(r, UI.leftPortfolio);
+  l.value=UI.leftPortfolio; if(UI.mode==='objectives' && UI.rightPortfolio===UI.leftPortfolio){ var alt=UI.portfolios.find(function(p){return p!==UI.leftPortfolio}); if(alt) UI.rightPortfolio=alt; }
+  r.value=UI.rightPortfolio;
+  byId('modePerf').classList.toggle('active', UI.mode==='performance');
+  byId('modeObj').classList.toggle('active', UI.mode==='objectives');
+}
+function renderTitles(){
+  try{ document.body.setAttribute('data-mode', UI.mode); }catch(_){}
+
+  var leftPrefix=byId('leftPaneTitlePrefix');
+  if(UI.mode==='performance'){
+    UI.rightPortfolio = UI.leftPortfolio;
+    leftPrefix.textContent='Metrics';
+    UI.rightPortfolio=UI.leftPortfolio;
+    byId('totalBadgeLeft').style.display='none';
+  } else {
+    leftPrefix.textContent='Objectives';
+    byId('totalBadgeLeft').style.display='inline-block';
+    if(UI.leftPortfolio===UI.rightPortfolio){
+      var alt=UI.portfolios.find(function(p){return p!==UI.leftPortfolio}); if(alt) UI.rightPortfolio=alt;
+    }
+  }
+  byId('leftPaneTitleLabel').textContent=UI.leftPortfolio;
+  byId('rightPaneTitleLabel').textContent=UI.rightPortfolio;
+  saveUI();
+}
+function openCreatePortfolio(onSave){
+  var ov=byId('createPortfolioOverlay'), inp=byId('newPortfolioName'); inp.value=''; ov.style.display='flex'; setTimeout(function(){inp.focus()},0);
+  function close(){ ov.style.display='none'; }
+  byId('createCancel').onclick=close;
+  byId('createSave').onclick=function(){ var name=(inp.value||'').trim(); if(!name){ close(); return;} if(UI.portfolios.some(function(p){return p.toLowerCase()===name.toLowerCase()})){ alert('Portfolio names must be unique.'); return;} UI.portfolios.push(name); saveUI(); close(); if(onSave) onSave(name); };
+  ov.onclick=function(e){ if(e.target===ov) close(); };
+}
+function openManage(){
+  var ov=byId('manageOverlay'), list=byId('mgrList'); list.innerHTML='';
+  UI.portfolios.forEach(function(p){
+    var row=document.createElement('div'); row.className='mgrItem'; row.dataset.orig = p;
+    row.style.display='grid'; row.style.gridTemplateColumns='1fr auto auto'; row.style.gap='.5rem'; row.style.alignItems='center'; row.style.margin='.25rem 0';
+    var input=document.createElement('input'); input.type='text'; input.value=p; input.style.cssText='width:100%;background:#0b1526;border:1px solid #29446d;color:#e9f2ff;border-radius:8px;padding:.3rem .45rem';
+    var ren=document.createElement('button'); ren.textContent='Rename'; ren.className='iconBtn';
+    var del=document.createElement('button'); del.textContent='Delete'; del.className='iconBtn danger';
+    row.appendChild(input); row.appendChild(ren); row.appendChild(del); list.appendChild(row);
+    del.onclick=function(){
+      if(row.dataset.delete==='1'){ delete row.dataset.delete; row.style.opacity=''; del.textContent='Delete'; }
+      else { row.dataset.delete='1'; row.style.opacity='.6'; del.textContent='Undo Delete'; }
+    };
+    ren.onclick=function(){ input.focus(); input.select(); };
+  });
+  ov.style.display='flex';
+  function close(){ ov.style.display='none'; }
+  byId('mgrCancel').onclick=close;
+  byId('mgrSave').onclick=function(){
+    var rows=[].slice.call(list.querySelectorAll('.mgrItem')); var newList=[];
+    rows.forEach(function(r){
+      var orig = r.dataset.orig || '';
+      if(r.dataset.delete==='1') return;
+      var name=(r.querySelector('input').value||'').trim();
+      if(!name) return;
+      if(newList.some(function(x){return x.toLowerCase()===name.toLowerCase()})) return;
+      if(orig && name && orig!==name){ renamePortfolioData(orig, name); }
+      newList.push(name);
+    });
+    if(newList.length<2){ alert('At least two portfolios must remain.'); return; }
+    UI.portfolios = newList;
+
+// --- BEGIN: ensure OA state reflects deletions/renames ---
+try {
+  var valid = new Set(UI.portfolios.map(p => p.trim().toLowerCase()));
+  // Remove deleted portfolios from OA’s maps
+  ['objectivesByPortfolio','metricsByPortfolio','perfLinksByPortfolio','objectivesLeftByPortfolio']
+  .forEach(bucket => {
+    if (OA[bucket]) {
+      Object.keys(OA[bucket]).forEach(k => {
+        if (!valid.has(k.trim().toLowerCase())) delete OA[bucket][k];
+      });
+    }
+  });
+  // Also purge any ooLinksByPair keys referencing deleted portfolios
+  if (OA.ooLinksByPair) {
+    Object.keys(OA.ooLinksByPair).forEach(k => {
+      var parts = k.split('→'); 
+      var L = (parts[0]||'').trim().toLowerCase();
+      var R = (parts[1]||'').trim().toLowerCase();
+      if (!valid.has(L) || !valid.has(R)) delete OA.ooLinksByPair[k];
+    });
+  }
+  if (typeof save === 'function') save();
+} catch(e){ console.warn('Portfolio cleanup failed:', e); }
+// --- END: ensure OA state reflects deletions/renames ---
+
+function pick(val, other){
+  if (UI.portfolios.includes(val)) return val;
+  var cand = UI.portfolios.find(function(p){return !other || p!==other});
+  return cand || UI.portfolios[0];
+}
+UI.leftPortfolio = pick(UI.leftPortfolio, UI.mode==='objectives' ? UI.rightPortfolio : null);
+UI.rightPortfolio = (UI.mode==='performance') ? UI.leftPortfolio : pick(UI.rightPortfolio, UI.leftPortfolio);
+
+saveUI(); renderHeader(); renderTitles(); close();
+ };
+}
+function attachEditable(el, which){
+  if(!el) return;
+  el.addEventListener('dblclick', function(){
+    var current = (which==='left') ? UI.leftPortfolio : UI.rightPortfolio;
+    var inp = document.createElement('input');
+    inp.type='text'; inp.value=current;
+    inp.style.background='#0b1526'; inp.style.border='1px solid #29446d';
+    inp.style.color='#e9f2ff'; inp.style.borderRadius='6px';
+    inp.style.padding='2px 6px'; inp.style.minWidth='120px';
+    el.replaceWith(inp); inp.focus(); inp.select();
+
+    var committed=false;
+    function cancel(){ if(committed) return; committed=true; inp.replaceWith(el); }
+    function showNameConflict(){
+      var ov=byId('nameConflictOverlay'); ov.style.display='flex';
+      byId('nameConflictCancel').onclick=function(){ ov.style.display='none'; cancel(); };
+      byId('nameConflictRename').onclick=function(){ ov.style.display='none'; inp.focus(); inp.select(); };
+    }
+    function commitOnce(){
+      if(committed) return;
+      var name=(inp.value||'').trim();
+      if(!name){ cancel(); return; }
+      if(portfolioExists(name, current)){ showNameConflict(); return; }
+      committed=true;
+      var idx = UI.portfolios.findIndex(function(p){return (p||'').toLowerCase()===current.toLowerCase()});
+      if(idx>-1){ UI.portfolios[idx]=name; } else { UI.portfolios.push(name); }
+      // migrate data buckets tied to portfolio name
+      renamePortfolioData(current, name);
+      if(UI.leftPortfolio.toLowerCase()===current.toLowerCase()) UI.leftPortfolio=name;
+      if(UI.rightPortfolio.toLowerCase()===current.toLowerCase()) UI.rightPortfolio=name;
+      var span=document.createElement('span'); span.id=el.id; span.className=el.className; span.textContent=name;
+      inp.replaceWith(span); attachEditable(span, which);
+      saveUI(); renderHeader(); renderTitles();
+    }
+    inp.addEventListener('keydown', function(e){
+      if(e.key==='Enter'){ e.preventDefault(); commitOnce(); }
+      else if(e.key==='Escape'){ e.preventDefault(); cancel(); }
+    });
+    inp.addEventListener('blur', commitOnce);
+  });
+}
+
+/* panes builders */
+function buildMetricRow(m){
+  var it=document.createElement('div'); it.className='item metric'; it.dataset.id=m.id;
+  if(!m.active) it.classList.add('inactive');
+  var handle=document.createElement('div'); handle.className='handle'; handle.textContent='☰'; if(!m.active) handle.classList.add('disabled');
+  var label=document.createElement('div'); label.className='label'; label.textContent=m.label; if(!m.active) label.classList.add('locked');
+  label.addEventListener('dblclick',function(){ if(!m.active) return; label.contentEditable='true'; label.focus(); });
+  label.addEventListener('blur',function(){ if(label.isContentEditable){ label.contentEditable='false'; var v=(label.textContent||'').trim()||'Metric'; if(isDuplicateName(OA.metrics,v,m.id)){ alert('Metric names must be unique.'); label.textContent=m.label; return;} m.label=v; if(UI.mode==='performance'){ setMetrics(OA.metrics); } save(); drawSchedule(); }});
+  var acts=document.createElement('div'); acts.className='actions';
+  var chk=document.createElement('div'); chk.className='chk'; chk.textContent='✓'; chk.onclick=function(){ m.active=!m.active; if(UI.mode==='performance'){ setMetrics(OA.metrics); } save(); render(); };
+  var del=document.createElement('div'); del.className='del'; del.textContent='✖'; del.onclick=function(){ OA.metrics=OA.metrics.filter(function(x){return x.id!==m.id}); OA.links=OA.links.filter(function(L){return L.metricId!==m.id}); if(UI.mode==='performance'){ setMetrics(OA.metrics); setPerfLinks(OA.links); } save(); render(); };
+  acts.appendChild(chk); acts.appendChild(del);
+  var plus=document.createElement('div'); plus.className='flashPlus'; plus.textContent='＋'; plus.style.position='absolute'; plus.style.top='50%'; plus.style.transform='translateY(-50%)'; plus.style.right='8px'; plus.style.zIndex='10000'; plus.style.position='absolute'; plus.style.top='50%'; plus.style.transform='translateY(-50%)'; plus.style.right='-14px'; plus.style.zIndex='2000'; plus.style.display='none';
+  it.addEventListener('pointerenter',function(){
+  if (UI.mode!=='performance'){ hideAllPluses(); return; }
+  var hasEligible=OA.objectives.some(function(o){return !oIsLinkedTo(m,o) && o.active});
+  if(m.active && hasEligible && metricHasCapacity(m.id)){
+    hideAllPluses(); plus.style.display='grid'; plus.classList.add('flash');
+    selectedMetric=m.id; setLeftLinkingActive(true);
+    showObjectiveTargets(m.id);
+  } else { hideAllPluses(); setLeftLinkingActive(false); }
+});
+  it.addEventListener('pointerleave',function(){ plus.style.display='none'; plus.classList.remove('flash'); });
+  it.appendChild(handle); it.appendChild(label); it.appendChild(acts); it.appendChild(plus);
+  enableDrag(it, handle, 'metrics', function(){return m.active;});
+  return it;
+}
+
+
+function buildObjectiveRow(o){
+  var it=document.createElement('div'); it.className='item objective'; it.dataset.id=o.id;
+  if(!o.active) it.classList.add('inactive');
+  var handle=document.createElement('div'); handle.className='handle'; handle.textContent='☰'; if(!o.active) handle.classList.add('disabled');
+  var label=document.createElement('div'); label.className='label'; label.textContent=o.label; if(!o.active) label.classList.add('locked');
+  label.addEventListener('dblclick',function(){ if(!o.active) return; label.contentEditable='true'; label.focus(); });
+  label.addEventListener('blur',function(){ if(label.isContentEditable){ label.contentEditable='false'; var v=(label.textContent||'').trim()||'Objective';
+    if(isDuplicateName(OA.objectives,v,o.id)){ alert('Objective names must be unique.'); label.textContent=o.label; return;}
+    o.label=v;
+    if(UI.mode==='objectives'){ setRightObjectives(OA.objectives); } else { setRightObjectives(OA.objectives); }
+    save(); drawSchedule();
+  }});
+  var acts=document.createElement('div'); acts.className='actions';
+  var chk=document.createElement('div'); chk.className='chk'; chk.textContent='✓';
+  chk.onclick=function(){ o.active=!o.active; setRightObjectives(OA.objectives); save(); render(); };
+  var del=document.createElement('div'); del.className='del'; del.textContent='✖';
+  del.onclick=function(){
+    // remove objective from current portfolio's objectives and any relevant links
+    OA.objectives = (OA.objectives||[]).filter(function(x){ return x.id!==o.id; });
+    if (UI.mode==='performance'){
+      OA.links = (OA.links||[]).filter(function(L){ return L.objectiveId!==o.id; });
+      if (typeof setPerfLinks==='function') setPerfLinks(OA.links);
+    } else {
+      OA.ooLinks = (OA.ooLinks||[]).filter(function(L){ return L.rightObjectiveId!==o.id; });
+      if (typeof setOOLinks==='function') setOOLinks(OA.ooLinks);
+      if (typeof purgeOoLinksForObjective==='function') purgeOoLinksForObjective(UI.rightPortfolio, o.id);
+    }
+    setRightObjectives(OA.objectives);
+    save(); render();
+  };
+  acts.appendChild(chk); acts.appendChild(del);
+  var sliderRow=document.createElement('div'); sliderRow.className='sliderRow';
+  var slider=document.createElement('input'); slider.type='range'; slider.min=0; slider.max=100; slider.step=5; slider.value=o.weight||0;
+  slider.classList.add('objective-weight');      // ✦ add
+  slider.setAttribute('data-role','objective-weight'); // ✦ add
+  if(!o.active){ slider.classList.add('disabled'); slider.disabled=true; }
+  var pct=document.createElement('div'); pct.className='weightPct'; pct.textContent=slider.value+'%';
+  slider.oninput=function(){ if(!o.active) return; o.weight=Math.max(0,Math.min(100,Number(slider.value)));
+    var tot=(OA.objectives||[]).reduce(function(a,b){return a+(b.weight||0)},0);
+    if(tot>100){ var overflow=tot-100; o.weight=Math.max(0,o.weight-overflow); slider.value=o.weight; }
+    pct.textContent=o.weight+'%'; updateTotals(); setRightObjectives(OA.objectives); save(); drawSchedule();
+  };
+  sliderRow.appendChild(slider); sliderRow.appendChild(pct);
+  var plus=document.createElement('div'); plus.className='flashPlus'; plus.textContent='＋';
+  plus.onclick=function(){
+    if (UI.mode==='performance'){
+      if(!selectedMetric) return;
+      var remaining=Math.max(0,100-metricStrengthTotal(selectedMetric)); if(remaining<=0) return;
+      if((OA.links||[]).some(function(L){return L.metricId===selectedMetric && L.objectiveId===o.id})) return;
+      if(!o.active) return;
+      var s=Math.min(5,remaining); (OA.links||(OA.links=[])).push({metricId:selectedMetric,objectiveId:o.id,strength:s});
+      setPerfLinks(OA.links);
+      selectedMetric=null; hideAllPluses(); setLeftLinkingActive(false); save(); updateFlag(); drawSchedule(); updateTotals();
+    } else {
+      
+// Reverse-relationship guard (Objectives mode) using styled modal
+(function(){
+  try {
+    var child = UI && UI.leftPortfolio;
+    var parent = UI && UI.rightPortfolio;
+    if (child && parent) {
+      var reverseKey = (typeof pairKey === 'function') ? pairKey(parent, child) : (String(parent)+'→'+String(child));
+      var reverseList = (OA.ooLinksByPair && OA.ooLinksByPair[reverseKey]) || [];
+      if (reverseList.length > 0) {
+        // Stop here and ask user; on confirm, delete reverse and then create link
+        return promptReverseRelation(child, parent, function(){
+          try { delete OA.ooLinksByPair[reverseKey]; } catch(_){}
+          try {
+            if (OA.relations && OA.relations.childToParents && OA.relations.childToParents[parent]){
+              delete OA.relations.childToParents[parent][child];
+              if (!Object.keys(OA.relations.childToParents[parent]).length){
+                delete OA.relations.childToParents[parent];
+              }
+            }
+          } catch(_){}
+          try { if (typeof save==='function') save(); } catch(_){}
+          try { if (typeof drawSchedule==='function') drawSchedule(); } catch(_){}
+          // After reversing, proceed to create the link (duplicate of original logic)
+          var remaining = Math.max(0, 100 - (typeof objectiveLeftStrengthTotal==='function'
+                           ? objectiveLeftStrengthTotal(selectedLeftObjective) : 0));
+          if (remaining <= 0) return;
+          if (!o.active) return;
+          var s = Math.min(5, remaining);
+          (OA.ooLinks || (OA.ooLinks=[])).push({ leftObjectiveId:selectedLeftObjective, rightObjectiveId:o.id, strength:s });
+          setOOLinks(OA.ooLinks);
+          selectedLeftObjective=null; hideAllPluses(); setLeftLinkingActive(false);
+          if (typeof save==='function') save(); updateFlag(); drawSchedule(); updateTotals();
+        }, function(){
+          // cancel -> do nothing
+        });
+      }
+    }
+  } catch(_){}
+})();
+if(!selectedLeftObjective) return;
+      var remaining=Math.max(0,100-objectiveLeftStrengthTotal(selectedLeftObjective)); if(remaining<=0) return;
+      if((OA.ooLinks||[]).some(function(L){return L.leftObjectiveId===selectedLeftObjective && L.rightObjectiveId===o.id})) return;
+      if(!o.active) return;
+      var s=Math.min(5,remaining); (OA.ooLinks||(OA.ooLinks=[])).push({leftObjectiveId:selectedLeftObjective,rightObjectiveId:o.id,strength:s});
+      setOOLinks(OA.ooLinks); selectedLeftObjective=null; hideAllPluses(); setLeftLinkingActive(false); save(); drawSchedule();
+    }
+  };
+  it.appendChild(handle); it.appendChild(label); it.appendChild(acts); it.appendChild(plus); it.appendChild(sliderRow);
+  enableDrag(it, handle, 'objectives', function(){return o.active;});
+  return it;
+}
+function buildObjectiveLeftRow(o){
+  var it=document.createElement('div'); it.className='item objective objectiveL'; it.dataset.id=o.id; it.style.position='relative'; it.style.position='relative';
+  if(!o.active) it.classList.add('inactive');
+  var handle=document.createElement('div'); handle.className='handle'; handle.textContent='☰'; if(!o.active) handle.classList.add('disabled');
+  var label=document.createElement('div'); label.className='label'; label.textContent=o.label; if(!o.active) label.classList.add('locked');
+  label.addEventListener('dblclick',function(){ if(!o.active) return; label.contentEditable='true'; label.focus(); });
+  label.addEventListener('blur',function(){ if(label.isContentEditable){ label.contentEditable='false'; var v=(label.textContent||'').trim()||'Objective'; if(isDuplicateName(OA.objectivesLeft,v,o.id)){ alert('Objective names must be unique.'); label.textContent=o.label; return; } o.label=v; setLeftObjectives(OA.objectivesLeft); save(); drawSchedule(); }});
+  var acts=document.createElement('div'); acts.className='actions';
+  var chk=document.createElement('div'); chk.className='chk'; chk.textContent='✓'; chk.onclick=function(){ o.active=!o.active; setLeftObjectives(OA.objectivesLeft); save(); render(); };
+  var del=document.createElement('div'); del.className='del'; del.textContent='✖'; del.onclick=function(){ OA.objectivesLeft=OA.objectivesLeft.filter(x=>x.id!==o.id); OA.ooLinks=(OA.ooLinks||[]).filter(L=>L.leftObjectiveId!==o.id); setLeftObjectives(OA.objectivesLeft); setOOLinks(OA.ooLinks); purgeOoLinksForObjective(UI.leftPortfolio, o.id); save(); render(); };
+  acts.appendChild(chk); acts.appendChild(del);
+  var sliderRow=document.createElement('div'); sliderRow.className='sliderRow';
+  var slider=document.createElement('input'); slider.type='range'; slider.min=0; slider.max=100; slider.step=5; slider.value=o.weight||0;
+  slider.classList.add('objective-weight');      // ✦ add
+  slider.setAttribute('data-role','objective-weight'); // ✦ add
+  if(!o.active){ slider.classList.add('disabled'); slider.disabled=true; }
+  var pct=document.createElement('div'); pct.className='weightPct'; pct.textContent=slider.value+'%';
+  slider.oninput=function(){ if(!o.active) return; o.weight=Math.max(0,Math.min(100,Number(slider.value)));
+    var tot=(OA.objectivesLeft||[]).reduce(function(a,b){return a+(b.weight||0)},0);
+    if(tot>100){ var overflow=tot-100; o.weight=Math.max(0,o.weight-overflow); slider.value=o.weight; }
+    pct.textContent=o.weight+'%'; updateTotalsLeft(); setLeftObjectives(OA.objectivesLeft); save(); drawSchedule();
+  };
+  sliderRow.appendChild(slider); sliderRow.appendChild(pct);
+  var plus=document.createElement('div'); plus.className='flashPlus'; plus.textContent='＋'; plus.style.position='absolute'; plus.style.top='50%'; plus.style.transform='translateY(-50%)'; plus.style.right='8px'; plus.style.zIndex='10000'; plus.style.position='absolute'; plus.style.top='50%'; plus.style.transform='translateY(-50%)'; plus.style.right='-14px'; plus.style.zIndex='2000'; plus.style.display='none';
+  // Always show left plus on hover and allow explicit click to initiate linking
+  it.addEventListener('pointerenter',function(){
+    if (UI.mode !== 'objectives') return;
+    if(!o.active) return;
+    hideAllPluses(); hideLeftRowPluses();
+    it.classList.add('showPlusL');
+    // Select this left objective and light up eligible right objectives
+    selectedLeftObjective = o.id;
+    setLeftLinkingActive(true);
+    showRightObjectiveTargetsForLeft(o.id);
+});
+  it.addEventListener('pointerleave',function(){ /* keep selection active; CSS handles hover visual */ });
+  plus.onclick=function(e){
+    e.stopPropagation();
+    if(leftHoverTimer){ clearTimeout(leftHoverTimer); leftHoverTimer=null; }
+    selectedLeftObjective=o.id; setLeftLinkingActive(true);
+    hideAllPluses(); plus.style.display='grid'; plus.classList.add('flash');
+    showRightObjectiveTargetsForLeft(o.id);
+  };
+  it.appendChild(handle); it.appendChild(label); it.appendChild(acts); it.appendChild(plus); it.appendChild(sliderRow);
+  enableDrag(it, handle, 'objectivesLeft', function(){return o.active;});
+  return it;
+}
+
+/* DnD */
+var dragState={type:null,id:null};
+function enableDrag(item,handle,type,can){ handle.onpointerdown=function(){ if(can && !can()) return; item.setAttribute('draggable','true'); }; handle.onpointerup=function(){ item.removeAttribute('draggable'); }; item.addEventListener('dragstart',function(e){ if(!item.hasAttribute('draggable')){ e.preventDefault(); return;} if(can&&!can()){ e.preventDefault(); return;} dragState.type=type; dragState.id=item.dataset.id; item.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; }); item.addEventListener('dragend',function(){ item.classList.remove('dragging'); dragState={type:null,id:null}; cleanupPH(); }); }
+function attachListDnD(list,type){ list.addEventListener('dragover',function(e){ if(dragState.type!==type) return; e.preventDefault(); var after=getAfter(list,e.clientY); showPH(list,after); drawSchedule(); }); list.addEventListener('drop',function(e){ if(dragState.type!==type||!dragState.id) return; e.preventDefault(); var arr=(type==='metrics'?OA.metrics:(type==='objectives'?OA.objectives:OA.objectivesLeft)); var from=arr.findIndex(function(x){return x.id===dragState.id}); if(from<0) return; var after=getAfter(list,e.clientY); var to; if(!after){ to=arr.length-1; if(from==to){ save(); render(); return; } } else { var targetId=after.dataset.id; to=arr.findIndex(function(x){return x.id===targetId}); } if(to>from) to--; if(to<0) to=0; move(arr,from,to); if (UI.mode==='objectives'){ if (type==='objectivesLeft') setLeftObjectives(arr); else if (type==='objectives') setRightObjectives(arr); }
+    else { if(type==='metrics') setMetrics(arr); else if(type==='objectives') setRightObjectives(arr); }
+    save(); render(); }); }
+function getAfter(container,y){ var els=[].slice.call(container.querySelectorAll('.item:not(.dragging)')); var closest={offset:-1e9,el:null}; els.forEach(function(ch){ var b=ch.getBoundingClientRect(); var off=y-b.top-b.height/2; if(off<0 && off>closest.offset){ closest={offset:off,el:ch}; }}); return closest.el; }
+function move(arr,from,to){ if(from===to) return; var el=arr.splice(from,1)[0]; arr.splice(to,0,el); }
+function showPH(list,after){ cleanupPH(); var ph=document.createElement('div'); ph.className='item placeholder'; ph.style.height='44px'; if(after) list.insertBefore(ph,after); else list.appendChild(ph); }
+function cleanupPH(){ $all('.placeholder').forEach(function(p){p.remove()}); }
+
+/* totals & flag */
+function updateTotals(){ var t=(OA.objectives||[]).reduce(function(a,b){return a+(b.weight||0)},0); var b=byId('totalBadge'); b.textContent=t+'%'; b.className='totalBadge '+(t===100?'green':'red'); }
+function updateTotalsLeft(){ var t=(OA.objectivesLeft||[]).reduce(function(a,b){return a+(b.weight||0)},0); var b=byId('totalBadgeLeft'); b.textContent=t+'%'; b.className='totalBadge '+(t===100?'green':'red'); }
+var balanceFlag=byId('balanceFlag');
+function updateFlag(){ var offenders=(OA.metrics||[]).map(function(m){return {m:m,total:metricStrengthTotal(m.id),has:metricLinks(m.id).length>0}}).filter(function(x){return x.has && x.total!==100}); balanceFlag.style.display=offenders.length?'inline-block':'none'; balanceFlag.title=offenders.length?('Balance off for '+offenders.length+' metric(s)'):'All linked metrics must total 100%'; }
+
+/* linking */
+var selectedMetric=null, selectedLeftObjective=null, hoveredPath=null, activePath=null, leftHoverTimer=null;
+function setLeftLinkingActive(active){ if(active){ document.body.setAttribute('data-linking','left'); } else { document.body.removeAttribute('data-linking'); } }
+
+function hideLeftRowPluses(){
+  document.querySelectorAll('.objectiveL.showPlusL').forEach(function(el){ el.classList.remove('showPlusL'); });
+}
+
+function hideAllPluses(){ $all('.flashPlus').forEach(function(p){p.style.display='none'; p.classList.remove('flash');}); }
+function showObjectiveTargets(metricId){
+  $all('.objective .flashPlus').forEach(function(p){p.style.display='none'; p.classList.remove('flash');});
+  (OA.objectives||[]).forEach(function(o){
+    var linked=(OA.links||[]).some(function(L){return L.metricId===metricId&&L.objectiveId===o.id});
+    if(!linked && o.active){
+      var el=document.querySelector('.objective[data-id=\"'+o.id+'\"] .flashPlus');
+      if(el){ el.style.display='grid'; el.classList.add('flash'); }
+    }
+  });
+}
+function showRightObjectiveTargetsForLeft(leftObjectiveId){
+  $all('.objective .flashPlus').forEach(function(p){p.style.display='none'; p.classList.remove('flash');});
+  (OA.objectives||[]).forEach(function(ro){
+    var linked=(OA.ooLinks||[]).some(function(L){return L.leftObjectiveId===leftObjectiveId && L.rightObjectiveId===ro.id});
+    if(!linked && ro.active){
+      var el=document.querySelector('.objective:not(.objectiveL)[data-id=\"'+ro.id+'\"] .flashPlus');
+      if(el){ el.style.display='grid'; el.classList.add('flash'); }
+    }
+  });
+}
+function rectAnchorRight(el){ var r=el.getBoundingClientRect(); return {x:r.right+2, y:r.top+r.height/2};}
+function rectAnchorLeft(el){ var r=el.getBoundingClientRect(); return {x:r.left-2, y:r.top+r.height/2};}
+function pathC(a,b){ var dx=Math.max(100,(b.x-a.x)/2); return "M "+a.x+","+a.y+" C "+(a.x+dx)+","+a.y+" "+(b.x-dx)+","+b.y+" "+b.x+","+b.y;}
+
+function isInViewport(el){ var r=el.getBoundingClientRect(); return r.bottom>0 && r.right>0 && r.top<innerHeight && r.left<innerWidth; }
+function isVisibleInPane(el, pane){ if(!el||!pane) return false; var r=el.getBoundingClientRect(), c=pane.getBoundingClientRect(), m=4; return r.bottom>c.top+m && r.top<c.bottom-m && r.right>c.left+m && r.left<c.right-m; }
+
+
+
+
+// Color for a given percentage strength (0..100) from state.colorScale
+function colorForStrength(pct){
+  try{
+    const s = Math.max(0, Math.min(100, Number(pct)||0)) / 100; // 0..1
+    const cs = (window.state && window.state.colorScale) || window.colorScale;
+    if (!cs) return '#39a8ff'; // fallback
+
+    // find largest key <= s
+    let bestK = 0;
+    Object.keys(cs).forEach(k=>{
+      const v = parseFloat(k);
+      if (!isNaN(v) && v <= s && v >= bestK) bestK = v;
+    });
+
+    // prefer exact key strings if they exist, else format to 2dp
+    const key = (cs.hasOwnProperty(String(bestK)) ? String(bestK) : bestK.toFixed(2));
+    return cs[key] || '#39a8ff';
+  }catch(e){
+    return '#39a8ff';
+  }
+}
+
+
+// Re-apply stroke/filter to all existing link paths from stored strengths
+function recolorLinks(){
+  try{
+    const cs = (window.state && window.state.colorScale) || window.colorScale;
+    if (!cs) return; // nothing to do if no colorScale
+    document.querySelectorAll('svg path.link').forEach(p=>{
+      const s = Number(p.dataset.strength) || 0;
+      const col = colorForStrength(s);
+      p.setAttribute('stroke', col);
+      p.setAttribute('filter', 'drop-shadow(0 0 8px ' + col + ')');
+    });
+  }catch(_){}
+}
+
+
+
+
+
+
+function drawLinks(){
+  var svg=byId('linkLayer'); svg.setAttribute('width',innerWidth); svg.setAttribute('height',innerHeight); svg.innerHTML='';
+  var leftPane=byId('leftPane'), rightPane=byId('rightPane');
+
+  if (UI.mode==='performance'){
+    (OA.links||[]).forEach(function(L){
+      var mEl=document.querySelector('.metric[data-id=\"'+L.metricId+'\"]');
+      var oEl=document.querySelector('.objective:not(.objectiveL)[data-id=\"'+L.objectiveId+'\"]');
+      var m=metricById(L.metricId), o=objectiveById(L.objectiveId);
+      if(!mEl||!oEl||!m||!o) return;
+      if(!m.active||!o.active) return;
+      if(!(isVisibleInPane(mEl,leftPane)&&isInViewport(mEl))) return;
+      if(!(isVisibleInPane(oEl,rightPane)&&isInViewport(oEl))) return;
+      var a=rectAnchorRight(mEl), b=rectAnchorLeft(oEl);
+      var p=document.createElementNS('http://www.w3.org/2000/svg','path');
+      p.setAttribute('class','link'); p.setAttribute('d',pathC(a,b));
+      var col = colorForStrength(L.strength || 0); p.setAttribute('stroke', col); p.setAttribute('stroke-width','3'); p.setAttribute('fill','none'); p.setAttribute('opacity','0.95'); p.setAttribute('stroke-linecap','round'); p.setAttribute('filter','drop-shadow(0 0 8px '+col+')');
+      p.addEventListener('pointerenter',function(){ hoveredPath=p; document.body.style.cursor='crosshair'; });
+      p.addEventListener('pointerleave',function(){ if(hoveredPath===p) hoveredPath=null; document.body.style.cursor=''; if(strength.style.display==='flex' && activePath===p && !strength.matches(':hover')) closeStrength(); });
+      p.addEventListener('click',function(e){ if(e.ctrlKey){ startDelete(L); } else { activePath=p; openStrength(e,L,true); } });
+      p.addEventListener('dblclick',function(e){ if(e.ctrlKey){ startDelete(L); } else { activePath=p; openStrength(e,L,true); } });
+      svg.appendChild(p);
+    });
+  } else {
+    (OA.ooLinks||[]).forEach(function(L){
+      var lEl=document.querySelector('.objectiveL[data-id=\"'+L.leftObjectiveId+'\"]');
+      var rEl=document.querySelector('.objective:not(.objectiveL)[data-id=\"'+L.rightObjectiveId+'\"]');
+      var lo=(OA.objectivesLeft||[]).find(function(x){return x.id===L.leftObjectiveId});
+      var ro=(OA.objectives||[]).find(function(x){return x.id===L.rightObjectiveId});
+      if(!lEl||!rEl||!lo||!ro) return;
+      if(!lo.active||!ro.active) return;
+      if(!(isVisibleInPane(lEl,leftPane)&&isInViewport(lEl))) return;
+      if(!(isVisibleInPane(rEl,rightPane)&&isInViewport(rEl))) return;
+      var a=rectAnchorRight(lEl), b=rectAnchorLeft(rEl);
+      var p=document.createElementNS('http://www.w3.org/2000/svg','path');
+      p.setAttribute('class','link'); p.setAttribute('d',pathC(a,b)); p.dataset.strength = String(L.strength || 0);
+      // use inline style to beat CSS
+      p.style.stroke = col;                                    
+      p.style.filter = 'drop-shadow(0 0 8px ' + col + ')';      
+      var col = colorForStrength(L.strength || 0); p.setAttribute('stroke', col);  p.setAttribute('stroke-width','3'); p.setAttribute('fill','none'); p.setAttribute('opacity','0.95'); p.setAttribute('stroke-linecap','round'); p.setAttribute('filter','drop-shadow(0 0 8px '+col+')');
+      p.addEventListener('pointerenter',function(){ hoveredPath=p; document.body.style.cursor='crosshair'; });
+      p.addEventListener('pointerleave',function(){ if(hoveredPath===p) hoveredPath=null; document.body.style.cursor=''; if(strength.style.display==='flex' && activePath===p && !strength.matches(':hover')) closeStrength(); });
+      p.addEventListener('click',function(e){ if(e.ctrlKey){ startDeleteOO(L); } else { activePath=p; openStrengthOO(e,L,true); } });
+      p.addEventListener('dblclick',function(e){ if(e.ctrlKey){ startDeleteOO(L); } else { activePath=p; openStrengthOO(e,L,true); } });
+      svg.appendChild(p);
+    });
+  }
+}
+var rafPending=false; function drawSchedule(){ if(rafPending) return; rafPending=true; requestAnimationFrame(function(){ rafPending=false; drawLinks(); }); }
+addEventListener('resize',drawSchedule,{passive:true}); addEventListener('scroll',drawSchedule,{passive:true});
+byId('leftPane').addEventListener('scroll',drawSchedule,{passive:true}); byId('rightPane').addEventListener('scroll',drawSchedule,{passive:true});
+setInterval(drawSchedule,300);
+
+/* --- Left pane right-edge hot-track (Objectives mode) --- */
+(function(){
+  var corridor = 24; // px from right edge to activate
+  var lp = byId('leftPane');
+  if(lp && !lp.__hottrack){
+    lp.__hottrack = true;
+    lp.addEventListener('mousemove', function(ev){
+      if (UI.mode !== 'objectives') return;
+      var paneRect = lp.getBoundingClientRect();
+      var xFromRight = paneRect.right - ev.clientX;
+      if (xFromRight < 0 || xFromRight > corridor) return; // only when near right border
+      // find row whose vertical band contains the cursor Y
+      var rows = [].slice.call(lp.querySelectorAll('.objectiveL.item'));
+      for (var i=0;i<rows.length;i++){
+        var r = rows[i].getBoundingClientRect();
+        if (ev.clientY >= r.top && ev.clientY <= r.bottom){
+          // activate this row's plus
+          var id = rows[i].dataset.id;
+          var plus = rows[i].querySelector('.flashPlus');
+          if (plus){
+            hideAllPluses();
+            plus.style.display = 'grid';
+            plus.classList.add('flash');
+            selectedLeftObjective = id;
+            setLeftLinkingActive(true);
+            // ensure OA.objectives is the right pane list
+            showRightObjectiveTargetsForLeft(id);
+          }
+          break;
+        }
+      }
+    }, {passive:true});
+  }
+})();
+
+document.addEventListener('keydown', function(e){
+  if(e.key==='Escape'){
+    selectedLeftObjective=null; selectedMetric=null; hideAllPluses(); hideLeftRowPluses(); setLeftLinkingActive(false);
+  }
+});
+document.addEventListener('pointerdown', function(ev){
+  var lp = byId('leftPane'), rp = byId('rightPane');
+  if (strength.style.display==='flex' && strength.contains(ev.target)) return;
+  if (!lp.contains(ev.target) && !rp.contains(ev.target)) {
+    selectedLeftObjective=null; selectedMetric=null; hideAllPluses(); hideLeftRowPluses(); setLeftLinkingActive(false);
+  }
+}, {passive:true});
+
+/* strength modal */
+var strength=byId('strengthModal'), slider=byId('strengthSlider'), sval=byId('strengthValue'), activeLink=null, sticky=false, follow=false;
+function positionModal(x,y){ var pad=10; strength.style.left=Math.max(pad,x+12)+'px'; strength.style.top=Math.max(pad,y+12)+'px'; }
+function openStrength(evt, link, makeSticky){ activeLink=link; var others=metricStrengthTotal(link.metricId)-(link.strength||0); var max=Math.max(0,100-others); slider.max=String(max); if(link.strength==null) link.strength=Math.min(5,max); slider.value=String(Math.min(link.strength,max)); sval.textContent=slider.value+'%'; positionModal(evt.clientX,evt.clientY); strength.style.display='flex'; if(makeSticky){ sticky=true; follow=false; setTimeout(function(){ sticky=false; follow=true; },850); } }
+function openStrengthOO(evt, link, makeSticky){ activeLink=link; var others=objectiveLeftStrengthTotal(link.leftObjectiveId)-(link.strength||0); var max=Math.max(0,100-others); slider.max=String(max); if(link.strength==null) link.strength=Math.min(5,max); slider.value=String(Math.min(link.strength,max)); sval.textContent=slider.value+'%'; positionModal(evt.clientX,evt.clientY); strength.style.display='flex'; if(makeSticky){ sticky=true; follow=false; setTimeout(function(){ sticky=false; follow=true; },850); } }
+function closeStrength(){ strength.style.display='none'; activePath=null; activeLink=null; sticky=false; follow=false; document.body.style.cursor=''; }
+document.addEventListener('pointerdown',function(ev){ if(strength.style.display==='flex' && !sticky && !strength.contains(ev.target)) closeStrength(); });
+strength.addEventListener('pointerenter',function(){ if(!sticky) follow=false; document.body.style.cursor=''; });
+strength.addEventListener('pointerleave',function(){ if(sticky) return; if(hoveredPath && activePath===hoveredPath){ follow=true; document.body.style.cursor='crosshair'; } else { closeStrength(); } });
+document.addEventListener('pointermove',function(ev){ if(strength.style.display==='flex'){ if(sticky) return; if(!strength.matches(':hover') && (!hoveredPath || activePath!==hoveredPath)){ closeStrength(); return;} if(follow && hoveredPath && activePath===hoveredPath){ positionModal(ev.clientX,ev.clientY); } } },{passive:true});
+slider.addEventListener('input',function(){ if(!activeLink) return; var isOO = (activeLink.leftObjectiveId && activeLink.rightObjectiveId); var others = isOO ? (objectiveLeftStrengthTotal(activeLink.leftObjectiveId)-(activeLink.strength||0)) : (metricStrengthTotal(activeLink.metricId)-(activeLink.strength||0)); var max=Math.max(0,100-others); var v=Math.min(max,Number(slider.value)); v=Math.round(v/5)*5; slider.value=String(v); sval.textContent=v+'%'; activeLink.strength=v; if(v===0){ if(isOO) startDeleteOO(activeLink); else startDelete(activeLink); return; } if(isOO){ setOOLinks(OA.ooLinks); } else { setPerfLinks(OA.links); } save(); updateFlag(); drawSchedule(); });
+
+/* delete */
+function startDelete(link){ closeStrength(); var ov=byId('confirmOverlay'), txt=byId('confirmText'); var mName=(metricById(link.metricId)||{}).label||'Metric', oName=(objectiveById(link.objectiveId)||{}).label||'Objective'; txt.textContent='Delete link between "'+mName+'" and "'+oName+'"?'; ov.style.display='flex'; byId('confirmOk').onclick=function(){ ov.style.display='none'; OA.links=(OA.links||[]).filter(function(L){return !(L.metricId===link.metricId&&L.objectiveId===link.objectiveId)}); setPerfLinks(OA.links); save(); updateFlag(); drawSchedule(); }; byId('confirmCancel').onclick=function(){ ov.style.display='none'; }; }
+function startDeleteOO(link){ closeStrength(); var ov=byId('confirmOverlay'), txt=byId('confirmText'); var lName=((OA.objectivesLeft||[]).find(function(x){return x.id===link.leftObjectiveId})||{}).label||'Objective (Left)'; var rName=((OA.objectives||[]).find(function(x){return x.id===link.rightObjectiveId})||{}).label||'Objective (Right)'; txt.textContent='Delete link between "'+lName+'" and "'+rName+'"?'; ov.style.display='flex'; byId('confirmOk').onclick=function(){ ov.style.display='none'; OA.ooLinks=(OA.ooLinks||[]).filter(function(L){return !(L.leftObjectiveId===link.leftObjectiveId&&L.rightObjectiveId===link.rightObjectiveId)}); setOOLinks(OA.ooLinks); save(); drawSchedule(); }; byId('confirmCancel').onclick=function(){ ov.style.display='none'; }; }
+
+/* header events + add buttons */
+function wireHeader(){
+  byId('modePerf').onclick=function(){ UI.mode='performance'; UI.rightPortfolio=UI.leftPortfolio=UI.leftPortfolio; selectedMetric=null; selectedLeftObjective=null; setLeftLinkingActive(false); renderHeader(); renderTitles(); render(); };
+  byId('modeObj').onclick=function(){ UI.mode='objectives'; if(UI.leftPortfolio===UI.rightPortfolio){ var alt=UI.portfolios.find(function(p){return p!==UI.leftPortfolio}); if(alt) UI.rightPortfolio=alt; } selectedMetric=null; selectedLeftObjective=null; setLeftLinkingActive(false); renderHeader(); renderTitles(); render(); };
+  byId('leftPortfolioSelect').onchange=function(){
+  if(this.value==='__ADD__'){
+    openCreatePortfolio((name)=>{
+      if(UI.mode==='performance'){
+    UI.rightPortfolio = UI.leftPortfolio;
+        UI.leftPortfolio = name; UI.rightPortfolio = name;
+      } else {
+        UI.leftPortfolio = name;
+      }
+      renderHeader(); renderTitles(); render();
+    });
+  } else {
+    if(UI.mode==='performance'){
+    UI.rightPortfolio = UI.leftPortfolio;
+      UI.leftPortfolio=this.value; UI.rightPortfolio=this.value;
+    } else {
+      UI.leftPortfolio=this.value;
+      if(UI.rightPortfolio===UI.leftPortfolio){
+        var alt=UI.portfolios.find(p=>p!==UI.leftPortfolio); if(alt) UI.rightPortfolio=alt;
+      }
+    }
+    renderHeader(); renderTitles(); render();
+  }
+};
+  byId('rightPortfolioSelect').onchange=function(){
+  if(this.value==='__ADD__'){
+    openCreatePortfolio((name)=>{
+      if(UI.mode==='performance'){
+    UI.rightPortfolio = UI.leftPortfolio;
+        UI.leftPortfolio = name; UI.rightPortfolio = name;
+      } else {
+        UI.rightPortfolio = name;
+        if(UI.rightPortfolio===UI.leftPortfolio){
+          var alt=UI.portfolios.find(p=>p!==UI.leftPortfolio); if(alt) UI.leftPortfolio=alt;
+        }
+      }
+      renderHeader(); renderTitles(); render();
+    });
+  } else {
+    if(UI.mode==='performance'){
+    UI.rightPortfolio = UI.leftPortfolio;
+      UI.leftPortfolio=this.value; UI.rightPortfolio=this.value;
+    } else {
+      UI.rightPortfolio=this.value;
+      if(UI.rightPortfolio===UI.leftPortfolio){
+        var alt=UI.portfolios.find(p=>p!==UI.leftPortfolio); if(alt) UI.leftPortfolio=alt;
+      }
+    }
+    renderHeader(); renderTitles(); render();
+  }
+};
+  byId('managePortfolios').onclick=openManage;
+}
+function wireAdds(){
+  var m=byId('addMetric'); if(m && !m.__wired){ m.__wired=true; m.onclick=function(){ if (UI.mode==='performance'){ var name=uniqueName(getMetrics(), 'Metric'); (OA.metrics||(OA.metrics=[])).push({id:'m'+Date.now(),label:name,active:true}); setMetrics(OA.metrics); } else { var name=uniqueName(getLeftObjectives(),'Objective'); (OA.objectivesLeft||(OA.objectivesLeft=[])).push({id:'ol'+Date.now(),label:name,active:true,weight:0}); setLeftObjectives(OA.objectivesLeft); } save(); render(); }; }
+  var o=byId('addObjective'); if(o && !o.__wired){ o.__wired=true; o.onclick=function(){ var tgt = (UI.mode==='objectives') ? getRightObjectives() : getRightObjectives(); var name=uniqueName(tgt,'Objective'); (OA.objectives||(OA.objectives=[])).push({id:'o'+Date.now(),label:name,active:true,weight:0}); setRightObjectives(OA.objectives); save(); render(); }; }
+}
+
+/* render */
+function render(){
+  var L=byId('leftList'); L.innerHTML='';
+  var R=byId('rightList'); R.innerHTML='';
+
+  if (UI.mode==='performance'){
+    // Bind performance data per portfolio
+    OA.metrics   = getMetrics().slice();
+    OA.objectives= getRightObjectives().slice(); // right==left in performance
+    OA.links     = getPerfLinks().slice();
+    (OA.metrics||[]).forEach(function(m){L.appendChild(buildMetricRow(m))});
+    (OA.objectives||[]).forEach(function(o){R.appendChild(buildObjectiveRow(o))});
+    byId('totalBadgeLeft').style.display='none';
+    byId('totalBadge').style.display='inline-block';
+    updateTotals();
+    attachListDnD(L,'metrics'); attachListDnD(R,'objectives');
+  } else {
+    OA.objectivesLeft = getLeftObjectives().slice();
+    OA.objectives     = getRightObjectives().slice();
+    OA.ooLinks        = getOOLinks().slice();
+    (OA.objectivesLeft||[]).forEach(function(o){L.appendChild(buildObjectiveLeftRow(o))});
+    (OA.objectives||[]).forEach(function(o){R.appendChild(buildObjectiveRow(o))});
+    byId('totalBadgeLeft').style.display='inline-block';
+    byId('totalBadge').style.display='inline-block';
+    updateTotalsLeft(); updateTotals();
+    attachListDnD(L,'objectivesLeft'); attachListDnD(R,'objectives');
+  }
+
+  updateFlag(); updateJson(); drawSchedule();
+  if (window.recolorObjectiveSliders) window.recolorObjectiveSliders();
+  if (window.recolorObjectiveSliders) window.recolorObjectiveSliders();
+  recolorLinks(); // <-- add this
+}
+
+/* init */
+function init(){
+  try{ document.body.setAttribute('data-mode', UI.mode); }catch(_){}
+
+  initTheme(); wireOrgName(); renderHeader(); renderTitles(); wireHeader(); wireAdds(); attachEditable(byId('leftPaneTitleLabel'),'left'); attachEditable(byId('rightPaneTitleLabel'),'right'); render();
+}
+if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', init, {once:true}); } else { init(); }
+
+/* ---- Left objectives math helpers ---- */
+function objectiveLeftById(id){ return (OA.objectivesLeft||[]).find(o=>o.id===id) }
+function objectiveLeftLinks(id){ return (OA.ooLinks||[]).filter(L=>L.leftObjectiveId===id) }
+function objectiveLeftStrengthTotal(id){ return objectiveLeftLinks(id).reduce((a,b)=>a+(b.strength||0),0) }
+function objectiveLeftHasCapacity(id){ return objectiveLeftStrengthTotal(id) < 100 }
+function oLIsLinkedTo(left,right){ return !!(OA.ooLinks||[]).find(L=>L.leftObjectiveId===left.id && L.rightObjectiveId===right.id) }
+window.renderApp = render;   // make a global hook for applyLoadedState()
+
+})();
+
+// --- Portfolio pre-navigation picker + confirm flow ---
+
+// Deterministic, human-safe portfolio ID from name
+function getPortfolioId(name){
+  try {
+    var h = Math.abs(simpleHash(String(name || ''))).toString(16);
+    return 'pf-' + h;
+  } catch(_) { return 'pf-' + encodeURIComponent(String(name || '')); }
+}
+function getAllPortfolioIds(){
+  return (UI.portfolios || []).map(getPortfolioId);
+}
+
+function metricsForPortfolio(name){
+  const list = (OA.metricsByPortfolio && OA.metricsByPortfolio[name]) ? OA.metricsByPortfolio[name] : [];
+  return list.map(m => (m && m.label) ? m.label : null).filter(Boolean);
+}
+
+function openPortfolioPicker(){
+  const ov = document.getElementById('portfolioPickerOverlay');
+  const sel = document.getElementById('portfolioPickerSelect');
+  const btnNext = document.getElementById('ppNext');
+  const btnCancel = document.getElementById('ppCancel');
+
+  // Populate with UI.portfolios
+  sel.innerHTML = '';
+  (UI.portfolios || []).forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p; opt.textContent = p;
+    sel.appendChild(opt);
+  });
+  // default to current left portfolio if present, else first
+  if ((UI.portfolios || []).includes(UI.leftPortfolio)) sel.value = UI.leftPortfolio;
+
+  ov.style.display = 'flex';
+
+  function close(){ ov.style.display = 'none'; }
+
+  btnCancel.onclick = function(){
+    // cancel → no navigation
+    close();
+  };
+
+  btnNext.onclick = function(){
+    const chosen = sel.value;
+    close();
+    openPortfolioConfirm(chosen);
+  };
+
+  // click outside to close (cancel behaviour)
+  ov.onclick = function(e){ if (e.target === ov) btnCancel.click(); };
+}
+
+function openPortfolioConfirm(portfolioName){
+  const ov = document.getElementById('portfolioConfirmOverlay');
+  const body = document.getElementById('portfolioConfirmBody');
+  const btnRedo = document.getElementById('pcRedo');
+  const btnCancel = document.getElementById('pcCancel');
+  const btnConfirm = document.getElementById('pcConfirm');
+
+  const pid = getPortfolioId(portfolioName);
+  const label = portfolioName; // your label equals name here
+  const mets = metricsForPortfolio(portfolioName);
+  const hasMetrics = mets.length > 0;
+
+  body.innerHTML = `
+    <div><strong>Portfolio selected:</strong> ${label}</div>
+    <div><strong>ID:</strong> ${pid}</div>
+    <div><strong>Label:</strong> ${label}</div>
+    <div style="margin-top:.5rem"><strong>Associated metrics:</strong></div>
+    ${
+      hasMetrics
+        ? `<ul style="margin:.35rem 0 0 1rem; padding:0">${mets.map(m => `<li>${m}</li>`).join('')}</ul>`
+        : `<div style="opacity:.8; margin-top:.25rem">No metrics defined for this portfolio.</div>`
+    }
+  `;
+
+  ov.style.display = 'flex';
+
+  function close(){ ov.style.display = 'none'; }
+
+  btnCancel.onclick = function(){
+    // Cancel here → do not navigate; discard
+    close();
+  };
+
+  btnRedo.onclick = function(){
+    // Go back to picker
+    close();
+    openPortfolioPicker();
+  };
+
+ btnConfirm.onclick = function(){
+  // Commit selection into UI (Performance mode uses left==right)
+  try {
+    UI.leftPortfolio  = portfolioName;
+    UI.rightPortfolio = portfolioName;
+    if (typeof saveUI === 'function') saveUI();
+
+    // Force a final, up-to-date save that includes "Portfolio IDs"
+    if (window.OAStatePersistence && typeof window.OAStatePersistence.saveNow === 'function') {
+      window.OAStatePersistence.saveNow();
+    }
+  } catch(_) {}
+
+  close(); // close the confirm modal
+
+  // Proceed to Performance page
+  window.location.href = 'Performance page 2_V3.html';
+};
+
+
+  // click outside to close (cancel)
+  ov.onclick = function(e){ if (e.target === ov) btnCancel.click(); };
+}
+
+
+// Neon arrow navigation → open picker first, then confirm, then navigate
+(function(){
+  var navEl = document.getElementById('navigate_to_Performance_page');
+  if (navEl && !navEl.__wired) {
+    navEl.__wired = true;
+    navEl.addEventListener('click', function (e) {
+      e.preventDefault();
+      openPortfolioPicker();
+    });
+  }
+})();
+
+
+
+
+
+
+
+
+(function () {
+  // Delegate click: use your existing Save button
+  document.addEventListener('click', function (e) {
+    if (e.target.closest && e.target.closest('#Save_Workbook')) {
+      e.preventDefault();
+      ensureSheetJS()
+        .then(exportWorkbookFromState)
+        .catch(err => {
+          console.error(err);
+          alert('Export failed: ' + (err && err.message ? err.message : err));
+        });
+    }
+  });
+
+  // --- Load SheetJS dynamically if needed ---
+  function ensureSheetJS() {
+    return new Promise((resolve, reject) => {
+      if (window.XLSX && typeof XLSX.utils !== 'undefined') return resolve();
+      const s = document.createElement('script');
+      // If you already include SheetJS elsewhere, this will be skipped.
+      s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error('Failed to load SheetJS'));
+      document.head.appendChild(s);
+    });
+  }
+
+
+
+
+
+
+
+
+// --- NEW: Build "Portfolio Mind Map" sheet (aggregated PF→PF weights) ---
+function buildMindMapSheet(UI, OA){
+  const portfolios = Array.isArray(UI.portfolios) ? UI.portfolios : [];
+  const ooByPair = (OA && OA.ooLinksByPair) ? OA.ooLinksByPair : {};
+
+  const rows = [
+    ['Source Portfolio','Target Portfolio','Total Strength','Connection Count','Sample Objective Links']
+  ];
+
+  Object.keys(ooByPair).forEach(pairKey => {
+    const arr = Array.isArray(ooByPair[pairKey]) ? ooByPair[pairKey] : [];
+    const [src, tgt] = String(pairKey).split('→');
+    if (!src || !tgt) return;
+
+    // Only include connections between portfolios that exist in UI.portfolios
+    if (!portfolios.includes(src) || !portfolios.includes(tgt)) return;
+
+    // Aggregate strength and summarize sample links
+    const total = arr.reduce((sum, L) => sum + (Number(L && L.strength) || 0), 0);
+
+    // Skip zero-weight pairs (change to `>= 0` if you want to keep zero rows)
+    if (total <= 0) return;
+
+    const sample = arr
+      .slice(0, 10) // keep it readable
+      .map(L => `${L.leftObjectiveId}→${L.rightObjectiveId} (${Number(L.strength)||0})`)
+      .join('; ');
+
+    rows.push([src, tgt, total, arr.length, sample]);
+  });
+
+  // Ensure the sheet has at least one data row
+  if (rows.length === 1) rows.push(['', '', 0, 0, '']);
+
+  return XLSX.utils.aoa_to_sheet(rows);
+}
+
+
+
+
+
+
+
+
+
+  // --- Main export ---
+  function exportWorkbookFromState() {
+    const UI = (window.UI || {});
+    const OA = (window.OA || {});
+
+    const portfolios = Array.isArray(UI.portfolios) ? UI.portfolios.slice() : [];
+
+    const objectivesByPortfolio = OA.objectivesByPortfolio || {};
+    const metricsByPortfolio    = OA.metricsByPortfolio || {};
+    const ooLinksByPair         = OA.ooLinksByPair || {};
+    const perfLinksByPortfolio  = OA.perfLinksByPortfolio || {};
+
+    // PF refs in UI order: PF1, PF2, ...
+    const PFREF = new Map();
+    portfolios.forEach((p, i) => PFREF.set(p, 'PF' + (i + 1)));
+
+    // ---- Flatten objectives across all portfolios -> OBJ1..OBJN (continuous) ----
+    const allObjectives = []; // [{pfName, pfRef, id, label, objRef}]
+    let objCounter = 0;
+    portfolios.forEach(p => {
+      (objectivesByPortfolio[p] || []).forEach(o => {
+        objCounter += 1;
+        allObjectives.push({
+          pfName: p,
+          pfRef : PFREF.get(p),
+          id    : o.id,
+          label : o.label,
+          objRef: 'OBJ' + objCounter
+        });
+      });
+    });
+
+    // Index for quick lookup by objective id
+    const OBJ_BY_ID = new Map();
+    allObjectives.forEach(o => OBJ_BY_ID.set(o.id, o));
+
+    // ---- Flatten metrics across portfolios in PF order -> M1..MZ (continuous) ----
+    // Use metricsByPortfolio as canonical labels; fall back to OA.metrics if needed.
+    const metricsCatalog = new Map(); // metricId -> label (best effort)
+    (Array.isArray(OA.metrics) ? OA.metrics : []).forEach(m => {
+      metricsCatalog.set(m.id, m.label || m.id);
+    });
+
+    const allMetrics = []; // [{pfName, pfRef, id, label, mRef}]
+    let mCounter = 0;
+    portfolios.forEach(p => {
+      (metricsByPortfolio[p] || []).forEach(m => {
+        const label = (m && m.label) || metricsCatalog.get(m.id) || (m && m.id) || 'Metric';
+        mCounter += 1;
+        allMetrics.push({
+          pfName: p,
+          pfRef : PFREF.get(p),
+          id    : m.id,
+          label : label,
+          mRef  : 'M' + mCounter
+        });
+        // capture best-known label
+        if (m && m.id && m.label) metricsCatalog.set(m.id, m.label);
+      });
+    });
+
+    // ---------- Sheet 1: OBJ-OBJ Align ----------
+    // Header row: ["", "PFx: OBJy", ...]
+    const ooHeader = [''];
+    allObjectives.forEach(col => {
+      ooHeader.push(col.pfRef + ': ' + col.objRef);
+    });
+
+    // Build rows
+    const ooBody = allObjectives.map(rowO => {
+      const row = [rowO.pfRef + ': ' + rowO.objRef];
+      allObjectives.forEach(colO => {
+        if (rowO.pfName === colO.pfName) {
+          row.push('--'); // same-portfolio: disallowed
+        } else {
+          const pairKey = rowO.pfName + '→' + colO.pfName;
+          const links = ooLinksByPair[pairKey] || [];
+          const hit = links.find(L => L.leftObjectiveId === rowO.id && L.rightObjectiveId === colO.id);
+          row.push(hit ? (toNumber(hit.strength)) : 0);
+        }
+      });
+      return row;
+    });
+
+    const sheetOO = XLSX.utils.aoa_to_sheet([ooHeader, ...ooBody]);
+
+
+
+
+
+// --- FIXED: Build "OBJ Weight" sheet ---
+// Rows: portfolios in UI.portfolios order (A2 down)
+// Cols: global OBJ refs (B1 →), exactly matching ReadMe order
+// Cell rule: value = weight iff column's objective belongs to the row's portfolio; else "--"
+function buildObjWeightSheet(UI, OA, allObjectives) {
+  const portfolios = Array.isArray(UI.portfolios) ? UI.portfolios : [];
+  const objByPF = (OA && OA.objectivesByPortfolio) ? OA.objectivesByPortfolio : {};
+
+  // Header row: ['' , 'OBJ1','OBJ2',...]
+  const header = [''];
+  allObjectives.forEach(o => header.push(o.objRef)); // 'OBJ1', 'OBJ2', ...
+
+  // Pre-index weights per portfolio by *that portfolio's* objective id
+  // (we still guard by pfName when writing cells to avoid cross-PF id collisions like "o1")
+  const weightIndexByPF = new Map(); // pfName -> Map(objId -> weight)
+  portfolios.forEach(pf => {
+    const m = new Map();
+    (objByPF[pf] || []).forEach(o => {
+      const w = (typeof o.weight === 'number' && Number.isFinite(o.weight)) ? o.weight : 0;
+      m.set(o.id, w);
+    });
+    weightIndexByPF.set(pf, m);
+  });
+
+  const rows = portfolios.map(pf => {
+    const row = [pf];
+    const wmap = weightIndexByPF.get(pf) || new Map();
+
+    allObjectives.forEach(colObj => {
+      // ✅ Critical fix: only show weight if this column objective *belongs to this same portfolio*
+      if (colObj.pfName === pf) {
+        // get the weight for *this exact objective id in this portfolio*
+        row.push(wmap.has(colObj.id) ? wmap.get(colObj.id) : 0);
+      } else {
+        row.push('--');
+      }
+    });
+
+    return row;
+  });
+
+  return XLSX.utils.aoa_to_sheet([header, ...rows]);
+}
+
+
+
+
+
+
+
+    // ---------- Sheet 2: Metric-OBJ Align ----------
+    // Columns (B..): all objectives (PFx: OBJy). Row labels (A): PFx: My
+    const moHeader = [''];
+    allObjectives.forEach(o => moHeader.push(o.pfRef + ': ' + o.objRef));
+
+    const moBody = allMetrics.map(mRow => {
+      const row = [mRow.pfRef + ': ' + mRow.mRef];
+      allObjectives.forEach(oCol => {
+        if (mRow.pfName !== oCol.pfName) {
+          // Cross-portfolio metric/objective pairs are defined as 0
+          row.push(0);
+          return;
+        }
+        // Find strength in perfLinksByPortfolio[PF]
+        const list = perfLinksByPortfolio[mRow.pfName] || [];
+        const match = list.find(L => L.metricId === mRow.id && L.objectiveId === oCol.id);
+        row.push(match ? (toNumber(match.strength)) : 0);
+      });
+      return row;
+    });
+
+    const sheetMO = XLSX.utils.aoa_to_sheet([moHeader, ...moBody]);
+
+    // ---------- Sheet 3: ReadMe ----------
+    // PF codes; OBJ map; Metric map (M1..MZ with names)
+    const readme = [];
+    readme.push(['ReadMe']);
+    readme.push(['Generated (UTC)', new Date().toISOString()]);
+    readme.push([]);
+
+    readme.push(['Portfolio codes']);
+    readme.push(['Code', 'Portfolio']);
+    portfolios.forEach(p => readme.push([PFREF.get(p), p]));
+
+    readme.push([]);
+    readme.push(['Objective codes']);
+    readme.push(['Code', 'Portfolio', 'Objective label', 'Objective ID']);
+    allObjectives.forEach(o => readme.push([o.objRef, o.pfName, o.label, o.id]));
+
+    readme.push([]);
+    readme.push(['Metric codes']);
+    readme.push(['Code', 'Portfolio', 'Metric label', 'Metric ID']);
+    allMetrics.forEach(m => readme.push([m.mRef, m.pfName, m.label, m.id]));
+
+    readme.push([]);
+    readme.push(['Notes']);
+    readme.push(['OBJ-OBJ Align', 'Same-portfolio pairs are "--". Cross-portfolio cells show link strength or 0.']);
+    readme.push(['Metric-OBJ Align', 'Rows = PFN:MN; Columns = PFN:OBJX; values from perfLinksByPortfolio or 0.']);
+
+    const sheetRM = XLSX.utils.aoa_to_sheet(readme);
+
+    // ---------- Build & download workbook ----------
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, sheetOO, 'OBJ-OBJ Align');
+    XLSX.utils.book_append_sheet(wb, sheetMO, 'Metric-OBJ Align');
+    XLSX.utils.book_append_sheet(wb, sheetRM, 'ReadMe');
+    // --- NEW: Portfolio Mind Map sheet ---
+    const sheetMM = buildMindMapSheet(UI, OA);
+    XLSX.utils.book_append_sheet(wb, sheetMM, 'Portfolio Mind Map');
+    // --- NEW: OBJ Weight sheet (portfolios x global OBJ refs) ---
+    const sheetOW = buildObjWeightSheet(UI, OA, allObjectives);
+    XLSX.utils.book_append_sheet(wb, sheetOW, 'OBJ Weight');
+
+
+
+
+
+
+
+
+    const wbArray = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([wbArray], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    triggerSave(blob, (getOrgName() || 'Organisation Map') + '.xlsx');
+  }
+
+  // --- Helpers ---
+  function toNumber(x) {
+    const n = Number(x);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function triggerSave(blob, filename) {
+    const a = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    a.href = url;
+    a.download = filename || 'Organisation Map.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () {
+      URL.revokeObjectURL(url);
+      a.remove();
+    }, 0);
+  }
+
+  function getOrgName() {
+    // If your page already stores a name somewhere else, adapt this.
+    try {
+      const s = (sessionStorage.getItem('oa_org_name') || '').trim();
+      return s || 'Organisation Map';
+    } catch (_) {
+      return 'Organisation Map';
+    }
+  }
+})();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</script>
+<!-- Reverse Relationship Modal Helper -->
+<script>
+(function(){
+  if (window.promptReverseRelation) return; // don't duplicate
+  function ensureReverseModal(){
+    var id='reverseGuardOverlay', el=document.getElementById(id);
+    if (el) return el;
+    el=document.createElement('div');
+    el.id=id;
+    el.className='confirmOverlay'; // uses existing styling
+    el.style.display='none';
+    el.innerHTML =
+      '<div class="confirmBox">'
+      +  '<h4>Reverse portfolio relationship?</h4>'
+      +  '<div id="reverseGuardText" style="line-height:1.45"></div>'
+      +  '<div class="confirmBtns">'
+      +    '<button id="reverseGuardCancel">Cancel</button>'
+      +    '<button id="reverseGuardOk" class="danger">Reverse &amp; Delete Links</button>'
+      +  '</div>'
+      +'</div>';
+    document.body.appendChild(el);
+    return el;
+  }
+  window.promptReverseRelation = function(child, parent, onConfirm, onCancel){
+    var ov = ensureReverseModal();
+    var txt = document.getElementById('reverseGuardText');
+    if (txt){
+      txt.innerHTML = 'Portfolio <b>'+parent+'</b> is already a parent of <b>'+child+'</b>.<br>'
+                    + 'Do you want to reverse this relationship?<br>'
+                    + '<small>Reversing will delete all existing links between these two portfolios’ objectives.</small>';
+    }
+    ov.style.display = 'flex';
+    function close(){ ov.style.display='none'; }
+    var okBtn = document.getElementById('reverseGuardOk');
+    var cancelBtn = document.getElementById('reverseGuardCancel');
+    okBtn.onclick = function(){ close(); onConfirm && onConfirm(); };
+    cancelBtn.onclick = function(){ close(); onCancel && onCancel(); };
+    ov.onclick = function(e){ if (e.target === ov){ close(); onCancel && onCancel(); } };
+  };
+})();
+</script>
+<script>
+(function(){
+  if (!window.OA) return;
+  if (!OA.relations) OA.relations = { childToParents: Object.create(null) };
+  if (!OA.ooLinksByPair) OA.ooLinksByPair = Object.create(null);
+  function rebuildRelationsFromPairs(){
+    OA.relations.childToParents = Object.create(null);
+    var P = OA.ooLinksByPair || {};
+    for (var k in P){ if (!Object.prototype.hasOwnProperty.call(P, k)) continue;
+      var list=P[k]||[]; if(!list.length) continue;
+      var a=k.split('→'); if(a.length<2) continue;
+      var c=(a[0]||'').trim(), p=(a[1]||'').trim();
+      if (!OA.relations.childToParents[c]) OA.relations.childToParents[c]=Object.create(null);
+      OA.relations.childToParents[c][p]=true;
+    }
+  }
+  if (document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded', rebuildRelationsFromPairs, {once:true});
+  } else {
+    rebuildRelationsFromPairs();
+  }
+})();
+</script>
+
+
+
+<script>
+(function(){
+  "use strict";
+  var W = window;
+
+  // --- Ensure objects
+  if (!W.OA) W.OA = {};
+  if (!OA.ooLinksByPair) OA.ooLinksByPair = Object.create(null);
+  if (!OA.relations) OA.relations = { childToParents: Object.create(null) };
+
+  // --- Utilities
+  function pk(L,R){ return (typeof W.pairKey === 'function') ? W.pairKey(L,R) : (String(L)+'\u2192'+String(R)); }
+
+  function rebuildRelationsFromPairs(){
+    var map = Object.create(null);
+    var pairs = OA.ooLinksByPair || {};
+    Object.keys(pairs).forEach(function(key){
+      var list = pairs[key] || [];
+      if (!list.length) return;                 // only count non-empty pairs
+      var parts = key.split('\u2192');          // "A→B"
+      if (parts.length < 2) return;
+      var child = (parts[0]||'').trim();
+      var parent = (parts[1]||'').trim();
+      if (!child || !parent) return;
+      if (!map[child]) map[child] = Object.create(null);
+      map[child][parent] = true;
+    });
+    OA.relations.childToParents = map;
+  }
+
+  // --- Wrap setOOLinks so every write updates both ooLinksByPair and relations
+  var _setOOLinks = W.setOOLinks;
+  if (typeof _setOOLinks === 'function' && !_setOOLinks.__relationsWrapped){
+    W.setOOLinks = function(list){
+      // Call the original committer first (keeps existing behavior/UI)
+      var ret = _setOOLinks.apply(this, arguments);
+
+      try {
+        // Figure out the currently active pair (left→right in Objectives mode)
+        var child = W.UI && UI.leftPortfolio;
+        var parent = W.UI && UI.rightPortfolio;
+        if (child && parent){
+          OA.ooLinksByPair[pk(child, parent)] = (Array.isArray(list) ? list.slice() : []);
+        }
+        // Rebuild whole relations map from all pairs so state never drifts
+        rebuildRelationsFromPairs();
+
+        // Persist so JSON footer reflects this immediately
+        if (typeof W.save === 'function') save();
+      } catch(_) {}
+
+      return ret;
+    };
+    W.setOOLinks.__relationsWrapped = true;
+  }
+
+  // --- Also refresh relations after a full restore (if you have restore())
+  if (typeof W.restore === 'function' && !W.restore.__relationsWrapped){
+    var _restore = W.restore;
+    W.restore = function(){
+      var out = _restore.apply(this, arguments);
+      try { rebuildRelationsFromPairs(); if (typeof W.save==='function') save(); } catch(_){}
+      return out;
+    };
+    W.restore.__relationsWrapped = true;
+  }
+
+  // --- Rebuild once on startup (covers initial page load and any preloaded pairs)
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){
+      try { rebuildRelationsFromPairs(); if (typeof W.save==='function') save(); } catch(_){}
+    }, { once:true });
+  } else {
+    try { rebuildRelationsFromPairs(); if (typeof W.save==='function') save(); } catch(_){}
+  }
+
+  // Expose for debugging if you want to call it from console
+  W.rebuildRelationsFromPairs = rebuildRelationsFromPairs;
+})();
+</script>
+
+
+
+<script>
+(function(){
+  "use strict";
+  var W = window, D = document;
+
+  // ----------------------------------------
+  // 0) Safe guards / helpers
+  // ----------------------------------------
+  if (!W.OA) W.OA = {};
+  if (!OA.ooLinksByPair) OA.ooLinksByPair = Object.create(null);
+  if (!OA.relations) OA.relations = { childToParents: Object.create(null) };
+
+  function pk(L,R){ return (typeof W.pairKey==='function') ? W.pairKey(L,R) : (String(L)+'\u2192'+String(R)); }
+
+  // ----------------------------------------
+  // 1) Keep relations in sync with ooLinksByPair
+  // ----------------------------------------
+  function rebuildRelationsFromPairs(){
+    var map = Object.create(null);
+    var pairs = OA.ooLinksByPair || {};
+    Object.keys(pairs).forEach(function(key){
+      var list = pairs[key] || [];
+      if (!list.length) return; // only consider active (non-empty) pairs
+      var parts = key.split('\u2192');
+      if (parts.length < 2) return;
+      var child = (parts[0]||'').trim();
+      var parent = (parts[1]||'').trim();
+      if (!child || !parent) return;
+      (map[child]||(map[child]=Object.create(null)))[parent] = true;
+    });
+    OA.relations.childToParents = map;
+  }
+
+  // Wrap setOOLinks so every save updates ooLinksByPair + relations, then persists
+  (function wrapSetOOLinks(){
+    var _set = W.setOOLinks;
+    if (typeof _set !== 'function' || _set.__relationsWrapped) return;
+    W.setOOLinks = function(list){
+      // call original first to keep your UI behavior intact
+      var ret = _set.apply(this, arguments);
+      try{
+        // mirror current visible pair into ooLinksByPair
+        var child = W.UI && UI.leftPortfolio;
+        var parent = W.UI && UI.rightPortfolio;
+        if (child && parent){
+          OA.ooLinksByPair[pk(child, parent)] = Array.isArray(list) ? list.slice() : [];
+        }
+        // rebuild relations from all pairs
+        rebuildRelationsFromPairs();
+        // persist so JSON footer reflects immediately
+        if (typeof W.save === 'function') save();
+      }catch(_){}
+      return ret;
+    };
+    W.setOOLinks.__relationsWrapped = true;
+  })();
+
+  // Also refresh after restore (on page load)
+  (function wrapRestore(){
+    var _restore = W.restore;
+    if (typeof _restore !== 'function' || _restore.__relationsWrapped) return;
+    W.restore = function(){
+      var out = _restore.apply(this, arguments);
+      try { rebuildRelationsFromPairs(); if (typeof W.save==='function') save(); } catch(_){}
+      return out;
+    };
+    W.restore.__relationsWrapped = true;
+  })();
+
+  // Rebuild once at startup (covers initial load)
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){
+      try { rebuildRelationsFromPairs(); if (typeof W.save==='function') save(); } catch(_){}
+    }, {once:true});
+  } else {
+    try { rebuildRelationsFromPairs(); if (typeof W.save==='function') save(); } catch(_){}
+  }
+
+  // ----------------------------------------
+  // 2) Eye icon + Organization Map (SVG)
+  // ----------------------------------------
+  function deriveRelations(){
+    var childToParents = Object.create(null);
+    var parentToChildren = Object.create(null);
+    var nodes = new Set();
+
+    Object.keys(OA.ooLinksByPair||{}).forEach(function(key){
+      var list = OA.ooLinksByPair[key] || [];
+      if (!list.length) return;
+      var parts = key.split('\u2192'); if (parts.length<2) return;
+      var c = (parts[0]||'').trim(), p = (parts[1]||'').trim();
+      if (!c || !p) return;
+      nodes.add(c); nodes.add(p);
+      (childToParents[c]||(childToParents[c]=Object.create(null)))[p]=true;
+      (parentToChildren[p]||(parentToChildren[p]=Object.create(null)))[c]=true;
+    });
+
+    // include known portfolios even if unlinked
+    try{
+      Object.keys(OA.objectivesByPortfolio||{}).forEach(function(n){ nodes.add(n); });
+      Object.keys(OA.objectivesLeftByPortfolio||{}).forEach(function(n){ nodes.add(n); });
+    }catch(_){}
+
+    var N = Array.from(nodes);
+    function hasP(n){ return !!(childToParents[n] && Object.keys(childToParents[n]).length); }
+    function hasC(n){ return !!(parentToChildren[n] && Object.keys(parentToChildren[n]).length); }
+    var zombies = N.filter(function(n){ return !hasP(n) && !hasC(n); });
+    var roots   = N.filter(function(n){ return !hasP(n) &&  hasC(n); });
+    return { nodes:N, childToParents:childToParents, parentToChildren:parentToChildren, roots:roots, zombies:zombies };
+  }
+
+  function makeRefs(nodes){
+    var byName = Object.create(null), byCode = Object.create(null);
+    var sorted = nodes.slice().sort();
+    sorted.forEach(function(n,i){
+      var code = "P"+String(i+1).padStart(2,"0");
+      byName[n]=code; byCode[code]=n;
+    });
+    return { byName:byName, byCode:byCode };
+  }
+
+  function buildLayers(rel){
+    var indeg = Object.create(null);
+    rel.nodes.forEach(function(n){ indeg[n]=0; });
+    Object.keys(rel.childToParents).forEach(function(ch){
+      Object.keys(rel.childToParents[ch]).forEach(function(p){ indeg[ch]=(indeg[ch]||0)+1; });
+    });
+
+    var layers=[], used=new Set();
+    var L0 = rel.roots.length ? rel.roots.slice() : (function(){
+      var minIn = Math.min.apply(null, rel.nodes.map(function(n){return indeg[n];}));
+      return rel.nodes.filter(function(n){ return indeg[n]===minIn; });
+    })();
+    L0 = Array.from(new Set(L0));
+    layers.push(L0); L0.forEach(function(n){ used.add(n); });
+
+    var frontier = L0.slice();
+    while (frontier.length){
+      var next=[];
+      frontier.forEach(function(p){
+        Object.keys(rel.parentToChildren[p]||{}).forEach(function(c){
+          if (!used.has(c)){ next.push(c); used.add(c); }
+        });
+      });
+      next = Array.from(new Set(next));
+      if (next.length){ layers.push(next); frontier = next; } else { frontier = []; }
+    }
+
+    if (rel.zombies.length) layers.push(rel.zombies.slice());
+
+    var rest = rel.nodes.filter(function(n){ return !used.has(n) && rel.zombies.indexOf(n)<0; });
+    if (rest.length) layers.push(rest);
+
+    return layers;
+  }
+
+  function ensureOrgModal(){
+  var id='orgMapOverlay', el=D.getElementById(id);
+  if (el) return el;
+  el=D.createElement('div');
+  el.id=id;
+  el.className='confirmOverlay';   // reuse your modal styling
+  el.style.display='none';
+  el.innerHTML =
+    '<div class="confirmBox" style="max-width: 1000px; width: 94vw; max-height: 86vh; overflow:auto; position:relative;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
+        '<h4 style="margin:0">Organization Relationship Map</h4>' +
+        '<button id="orgMapClose" title="Close">Close</button>' +
+      '</div>' +
+      '<div id="orgMapCanvas"></div>' +
+
+     
+      '<div id="Save_Workbook" class="saveWorkbookIcon" title="Save Organisation Map">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="40" height="40">' +
+          '<rect width="48" height="48" rx="8" fill="#107C41"/>' +
+          '<rect x="15" y="8" width="18" height="32" fill="#185C37"/>' +
+          '<path fill="#33C481" d="M33 8h8a1 1 0 0 1 1 1v30a1 1 0 0 1-1 1h-8z"/>' +
+          '<path fill="#fff" d="M22 16l-4 8 4 8h3l-4-8 4-8z"/>' +
+        '</svg>' +
+      '</div>' +
+     
+
+    '</div>';
+  D.body.appendChild(el);
+
+  // close handlers
+  D.getElementById('orgMapClose').onclick = function(){ el.style.display='none'; };
+  el.onclick = function(e){ if (e.target===el) el.style.display='none'; };
+  return el;
+}
+
+
+  function renderOrgMap(into){
+    var rel = deriveRelations();
+    var refs = makeRefs(rel.nodes);
+
+    into.innerHTML = "";
+
+    var info = D.createElement("div");
+    info.style.opacity=".85"; info.style.fontSize="12px"; info.style.margin="0 0 10px 0";
+    info.textContent = "Graph uses reference codes. Legend maps refs → portfolio names. Roots: no parents; Zombies: no parents & no children.";
+    into.appendChild(info);
+
+    if (!rel.nodes.length){
+      var empty = D.createElement("div");
+      empty.style.opacity=".8"; empty.style.padding="12px"; empty.textContent = "No portfolios to display.";
+      into.appendChild(empty); return;
+    }
+
+    var layers = buildLayers(rel);
+    var padX=120, padY=90, nodeR=16, gapY=120, gapX=140;
+    var width  = Math.max(640, (Math.max.apply(null, layers.map(function(L){return L.length;}))||1)*gapX + padX*2);
+    var height = Math.max(420, layers.length*gapY + padY*2);
+
+    var svg = D.createElementNS("http://www.w3.org/2000/svg","svg");
+    svg.setAttribute("viewBox","0 0 "+width+" "+height);
+    svg.setAttribute("width","100%");
+    svg.setAttribute("height","460");
+
+    var pos = Object.create(null);
+    layers.forEach(function(L, li){
+      var y = padY + li*gapY;
+      var cols = L.length;
+      if (!cols) return;
+      var span = (cols-1)*gapX;
+      for (var i=0;i<cols;i++){
+        var x = (width/2) - (span/2) + i*gapX;
+        pos[L[i]] = {x:x, y:y};
+      }
+    });
+
+    // edges (parent -> child)
+    Object.keys(rel.parentToChildren).forEach(function(p){
+      Object.keys(rel.parentToChildren[p]).forEach(function(c){
+        if (!pos[p] || !pos[c]) return;
+        var a=pos[p], b=pos[c];
+        var mx=(a.x+b.x)/2, my=(a.y+b.y)/2;
+        var path = D.createElementNS("http://www.w3.org/2000/svg","path");
+        path.setAttribute("d","M"+a.x+" "+(a.y+nodeR)+" Q "+mx+" "+my+" "+b.x+" "+(b.y-nodeR));
+        path.setAttribute("fill","none");
+        path.setAttribute("stroke","currentColor");
+        path.setAttribute("stroke-width","1.5");
+        path.setAttribute("opacity","0.7");
+        svg.appendChild(path);
+      });
+    });
+
+    // nodes
+    function hasP(n){ return !!(rel.childToParents[n] && Object.keys(rel.childToParents[n]).length); }
+    function hasC(n){ return !!(rel.parentToChildren[n] && Object.keys(rel.parentToChildren[n]).length); }
+
+    rel.nodes.forEach(function(n){
+      var p=pos[n]; if(!p) return;
+      var g = D.createElementNS("http://www.w3.org/2000/svg","g");
+      g.setAttribute("transform","translate("+p.x+" "+p.y+")");
+
+      var circle = D.createElementNS("http://www.w3.org/2000/svg","circle");
+      circle.setAttribute("r", nodeR);
+      circle.setAttribute("stroke","currentColor");
+      circle.setAttribute("fill","none");
+      circle.setAttribute("stroke-width","1.6");
+      if (!hasP(n) && hasC(n)) circle.setAttribute("class","node root");
+      else if (!hasP(n) && !hasC(n)) circle.setAttribute("class","node zombie");
+      else circle.setAttribute("class","node");
+
+      var label = D.createElementNS("http://www.w3.org/2000/svg","text");
+      label.setAttribute("text-anchor","middle");
+      label.setAttribute("dy",".35em");
+      label.setAttribute("font-size","11");
+      label.textContent = refs.byName[n] || "P?";
+
+      g.appendChild(circle);
+      g.appendChild(label);
+      svg.appendChild(g);
+    });
+
+    // frame + legend
+    var frame = D.createElement("div");
+    frame.style.border="1px solid rgba(255,255,255,.08)";
+    frame.style.borderRadius="10px";
+    frame.style.padding="8px";
+    frame.appendChild(svg);
+
+    var legendTitle = D.createElement("div");
+    legendTitle.style.fontWeight="600";
+    legendTitle.style.margin="10px 0 6px";
+    legendTitle.textContent = "Legend";
+
+    var table = D.createElement("table");
+    table.style.width="100%"; table.style.borderCollapse="collapse"; table.style.fontSize="12px";
+    var thead = D.createElement("thead");
+    thead.innerHTML = '<tr><th style="text-align:left;padding:6px 4px;">Ref</th><th style="text-align:left;padding:6px 4px;">Portfolio</th><th style="text-align:left;padding:6px 4px;">Type</th></tr>';
+    var tbody = D.createElement("tbody");
+    rel.nodes.slice().sort().forEach(function(n){
+      var t = (!hasP(n) && !hasC(n)) ? 'Zombie' : (!hasP(n) ? 'Root' : 'Active');
+      var tr = D.createElement("tr");
+      tr.innerHTML =
+        '<td style="padding:4px 4px;">'+(refs.byName[n]||'')+'</td>'+
+        '<td style="padding:4px 4px;opacity:.9">'+n+'</td>'+
+        '<td style="padding:4px 4px;opacity:.7">'+t+'</td>';
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+
+    into.appendChild(frame);
+    into.appendChild(legendTitle);
+    into.appendChild(table);
+  }
+
+  function openOrgModal(){
+  const ov = ensureModal();
+  const box = ov.querySelector('.confirmBox');
+  if (box && !ov.querySelector('#Save_Workbook')) {
+    box.style.position = 'relative';
+    const div = document.createElement('div');
+    div.id = 'Save_Workbook';
+    div.className = 'saveWorkbookIcon';
+    div.title = 'Save Organisation Map';
+    div.innerHTML =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="40" height="40">'
+    +   '<rect width="48" height="48" rx="8" fill="#107C41"/>'
+    +   '<rect x="15" y="8" width="18" height="32" fill="#185C37"/>'
+    +   '<path fill="#33C481" d="M33 8h8a1 1 0 0 1 1 1v30a1 1 0 0 1-1 1h-8z"/>'
+    +   '<path fill="#fff" d="M22 16l-4 8 4 8h3l-4-8 4-8z"/>'
+    + '</svg>';
+    box.appendChild(div);
+  }
+
+  const canvas = document.getElementById('orgMapCanvas');
+  renderOrgTree(canvas);
+  ov.style.display = 'flex';
+}
+
+
+  // Eye button placement: after org/page title, before style switcher (if same parent)
+  function findTitle(){
+  return (
+    // your actual header:
+    document.querySelector('.top h2') ||
+    // the editable org name span inside it (fallback):
+    document.getElementById('Root_Org_Name')?.closest('h2') ||
+    // other generic fallbacks:
+    document.querySelector('#orgName') ||
+    document.querySelector('.orgName') ||
+    document.querySelector('h1.pageTitle') ||
+    document.querySelector('.titleRow h1') ||
+    document.querySelector('.header h1') ||
+    document.querySelector('#title') ||
+    document.querySelector('h2') ||    // <— add h2 as a generic fallback
+    document.querySelector('h1')
+  );
+}
+  function findStyleSwitch(){
+    return (
+      D.querySelector('.styleSwitch') ||
+      D.querySelector('#styleSwitch') ||
+      D.querySelector('.themeToggle') ||
+      D.querySelector('[data-theme-switch]')
+    );
+  }
+  function ensureEye(){
+    var old = D.getElementById('orgMapEye'); if (old) old.remove();
+    var titleEl = findTitle(); if (!titleEl) return false;
+
+    if (!/inline/i.test(getComputedStyle(titleEl).display)){
+      titleEl.style.display='inline-flex';
+      titleEl.style.alignItems='center';
+      titleEl.style.gap='6px';
+    }
+
+    var eyeBtn = D.createElement('button');
+    eyeBtn.id='orgMapEye'; eyeBtn.type='button';
+    eyeBtn.title='View Organization Map'; eyeBtn.setAttribute('aria-label','View Organization Map');
+    eyeBtn.style.display='inline-flex'; eyeBtn.style.alignItems='center'; eyeBtn.style.justifyContent='center';
+    eyeBtn.style.width='26px'; eyeBtn.style.height='26px'; eyeBtn.style.marginLeft='6px';
+    eyeBtn.style.border='none'; eyeBtn.style.background='transparent'; eyeBtn.style.cursor='pointer';
+    eyeBtn.style.color='inherit'; eyeBtn.style.opacity='.9'; eyeBtn.style.transition='opacity .2s, transform .1s';
+    eyeBtn.onmouseenter=function(){ eyeBtn.style.opacity='1'; };
+    eyeBtn.onmouseleave=function(){ eyeBtn.style.opacity='.85'; };
+    eyeBtn.onmousedown=function(){ eyeBtn.style.transform='scale(.96)'; };
+    eyeBtn.onmouseup=function(){ eyeBtn.style.transform='scale(1)'; };
+    eyeBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+    eyeBtn.onclick = openOrgModal;
+
+    var styleSwitch = findStyleSwitch();
+    if (styleSwitch && styleSwitch.parentElement === titleEl.parentElement){
+      titleEl.parentElement.insertBefore(eyeBtn, styleSwitch);
+    } else {
+      titleEl.insertAdjacentElement('afterend', eyeBtn);
+    }
+    return true;
+  }
+
+  function placeEyeRobust(){
+    var ok = ensureEye();
+    if (!ok){
+      setTimeout(ensureEye, 250);
+      setTimeout(ensureEye, 750);
+      setTimeout(ensureEye, 1500);
+      setTimeout(ensureEye, 3000);
+    }
+    var header = D.querySelector('#topBar, .topbar, .header, .titleRow') || D.body;
+    var mo = new MutationObserver(function(){
+      if (!D.getElementById('orgMapEye')) ensureEye();
+    });
+    mo.observe(header, { childList:true, subtree:true });
+  }
+
+  if (D.readyState === 'loading'){
+    D.addEventListener('DOMContentLoaded', placeEyeRobust, {once:true});
+  } else {
+    placeEyeRobust();
+  }
+
+  // public API
+  W.OA_UI = W.OA_UI || {};
+  W.OA_UI.showRelationsMap = openOrgModal;
+
+})();
+</script>
+
+
+
+
+<script>
+(function(){
+  "use strict";
+  const W = window, D = document;
+
+  /* ---------- helpers: read state safely (no mutations) ---------- */
+  function readUI(){ try{ return W.UI || {}; }catch(_){ return {}; } }
+  function readOA(){ try{ return W.OA || {}; }catch(_){ return {}; } }
+
+  function collectPortfolios(){
+    const S = new Set();
+    const UI = readUI(), OA = readOA();
+
+    // Live list
+    (UI.portfolios || []).forEach(n => n && S.add(String(n)));
+
+    // ooLinksByPair (both sides)
+    Object.keys(OA.ooLinksByPair || {}).forEach(k=>{
+      const [a,b] = String(k).split("→").map(s=>s.trim());
+      if (a) S.add(a); if (b) S.add(b);
+    });
+
+    // Fallback: saved session (if UI not exposed)
+    try{
+      const raw = sessionStorage.getItem("objective_alignment_state");
+      if (raw){
+        const obj = JSON.parse(raw);
+        const arr = obj?.pf1?.ObjectiveAlignment?.UI?.portfolios;
+        if (Array.isArray(arr)) arr.forEach(n => n && S.add(String(n)));
+      }
+    }catch(_){}
+
+    return Array.from(S);
+  }
+
+  /* ---------- derive relations & stitch Root Organisation ---------- */
+  function deriveRelations(){
+    const OA = readOA();
+    const c2p = {}; // child -> { parent: true }
+    const p2c = {}; // parent -> { child: true }
+
+    // from ooLinksByPair only if the list is non-empty (active relationship)
+    Object.keys(OA.ooLinksByPair || {}).forEach(k=>{
+      const parts = String(k).split("→");
+      const child  = (parts[0]||"").trim();
+      const parent = (parts[1]||"").trim();
+      const list = OA.ooLinksByPair[k] || [];
+      if (!child || !parent || !list.length) return;
+      (c2p[child]  || (c2p[child]  = {}))[parent] = true;
+      (p2c[parent] || (p2c[parent] = {}))[child]  = true;
+    });
+
+    const all = collectPortfolios();
+    const hasP = n => !!(c2p[n] && Object.keys(c2p[n]).length);
+    const hasC = n => !!(p2c[n] && Object.keys(p2c[n]).length);
+
+    const zombies = all.filter(n => !hasP(n) && !hasC(n));
+    const roots   = all.filter(n => !hasP(n) &&  hasC(n));
+
+    // Always create virtual Root Organisation at top and connect to all parentless portfolios
+    // Root should connect ONLY to true top-level parents (no parents BUT has children).
+// Zombies (no parents AND no children) remain completely disconnected.
+p2c["Root Organisation"] = p2c["Root Organisation"] || {};
+all.forEach(p=>{
+  if (p !== "Root Organisation" && !hasP(p) && hasC(p)) {  // <-- note hasC(p)
+    p2c["Root Organisation"][p] = true;
+    (c2p[p] || (c2p[p] = {}))["Root Organisation"] = true; // keep reverse map consistent
+  }
+});
+if (!roots.includes("Root Organisation")) roots.unshift("Root Organisation");
+
+
+    return { all, c2p, p2c, roots, zombies };
+  }
+
+  /* ---------- slick, readable SVG map (Miro-ish) ---------- */
+  function renderOrgTree(container){
+    const { all, c2p, p2c, roots, zombies } = deriveRelations();
+    container.innerHTML = "";
+
+    if (!all.length){
+      const msg = D.createElement("div");
+      msg.style.opacity=".85"; msg.style.padding="12px";
+      msg.textContent = "No portfolios to display.";
+      container.appendChild(msg);
+      return;
+    }
+
+    // Build layered layout
+    const levels=[], placed=new Set();
+    function grow(node, depth=0){
+      if (!levels[depth]) levels[depth]=[];
+      if (!placed.has(node)){ levels[depth].push(node); placed.add(node); }
+      Object.keys(p2c[node]||{}).forEach(ch => grow(ch, depth+1));
+    }
+    roots.forEach(r => grow(r,0));
+    if (zombies.length) levels.push(zombies.slice());
+
+    const svgNS="http://www.w3.org/2000/svg";
+    const width=1100, levelGap=150, nodeR=24;   // ← bigger, clearer
+    const height=Math.max(420,(levels.length+1)*levelGap);
+
+    const svg=D.createElementNS(svgNS,"svg");
+    svg.setAttribute("viewBox",`0 0 ${width} ${height}`);
+    svg.style.width="100%";
+    svg.style.height="min(72vh,800px)";
+    svg.style.display="block";
+
+    // subtle grid
+    const defs=D.createElementNS(svgNS,"defs");
+    const pat=D.createElementNS(svgNS,"pattern");
+    pat.setAttribute("id","oaGrid"); pat.setAttribute("width","32"); pat.setAttribute("height","32");
+    pat.setAttribute("patternUnits","userSpaceOnUse");
+    const pth=D.createElementNS(svgNS,"path");
+    pth.setAttribute("d","M 32 0 L 0 0 0 32");
+    pth.setAttribute("fill","none"); pth.setAttribute("stroke","rgba(255,255,255,.06)"); pth.setAttribute("stroke-width","1");
+    pat.appendChild(pth); defs.appendChild(pat);
+
+    // arrow marker
+    const mk=D.createElementNS(svgNS,"marker");
+    mk.setAttribute("id","oaArrow"); mk.setAttribute("markerWidth","8"); mk.setAttribute("markerHeight","8");
+    mk.setAttribute("refX","6"); mk.setAttribute("refY","3"); mk.setAttribute("orient","auto");
+    const mkp=D.createElementNS(svgNS,"path");
+    mkp.setAttribute("d","M0,0 L6,3 L0,6 Z"); mkp.setAttribute("fill","rgba(74,192,255,.95)");
+    mk.appendChild(mkp); defs.appendChild(mk);
+
+    // gradients
+    function lg(id, a,b){
+      const g=D.createElementNS(svgNS,"linearGradient"); g.setAttribute("id",id); g.setAttribute("x1","0"); g.setAttribute("x2","0");
+      g.innerHTML=`<stop offset="0%" stop-color="${a}"/><stop offset="100%" stop-color="${b}"/>`; return g;
+    }
+    defs.append(
+      lg("oaNode","#007acc","#005aa0"),
+      lg("oaRoot","#27b","#157a86"),
+      lg("oaZombie","#5a5a5f","#47474c"),
+      lg("oaParent","#00a0f0","#0078be")
+    );
+
+    const bg=D.createElementNS(svgNS,"rect");
+    bg.setAttribute("width","100%"); bg.setAttribute("height","100%"); bg.setAttribute("fill","url(#oaGrid)");
+    svg.append(defs,bg);
+
+    // positions
+    const pos={};
+    levels.forEach((L,li)=>{
+      const y=90+li*levelGap;
+      const gap=width/(L.length+1);
+      L.forEach((n,i)=> pos[n]={x:gap*(i+1), y});
+    });
+
+    // edges (curved)
+    Object.entries(p2c).forEach(([parent, kids])=>{
+      const a=pos[parent]; if(!a) return;
+      Object.keys(kids||{}).forEach(ch=>{
+        const b=pos[ch]; if(!b) return;
+        const path=D.createElementNS(svgNS,"path");
+        const mx=(a.x+b.x)/2;
+        const d=`M ${a.x} ${a.y+nodeR}
+                 C ${mx} ${a.y+nodeR+40}, ${mx} ${b.y-nodeR-40}, ${b.x} ${b.y-nodeR}`;
+        path.setAttribute("d", d);
+        path.setAttribute("fill","none");
+        path.setAttribute("stroke","rgba(74,192,255,.95)");
+        path.setAttribute("stroke-width","2.4");
+        path.setAttribute("marker-end","url(#oaArrow)");
+        svg.appendChild(path);
+      });
+    });
+
+    // nodes
+    const hasP = n => !!(c2p[n] && Object.keys(c2p[n]).length);
+    const hasC = n => !!(p2c[n] && Object.keys(p2c[n]).length);
+
+    function fillFor(n){
+      if (n==="Root Organisation") return "url(#oaRoot)";
+      if (!hasP(n) && !hasC(n))    return "url(#oaZombie)";
+      if (!hasP(n) && hasC(n))     return "url(#oaParent)";
+      return "url(#oaNode)";
+    }
+
+    all.forEach((n,i)=>{
+      const p=pos[n]; if(!p) return;
+      const g=D.createElementNS(svgNS,"g"); g.setAttribute("transform",`translate(${p.x},${p.y})`);
+
+      // soft shadow
+      const sh=D.createElementNS(svgNS,"circle");
+      sh.setAttribute("r", nodeR + (n==="Root Organisation"? 12:6));
+      sh.setAttribute("fill","rgba(0,0,0,.45)");
+      sh.setAttribute("transform","translate(0,2)");
+
+      const c=D.createElementNS(svgNS,"circle");
+      const extra = (n==="Root Organisation" ? 10 : 0);       // ← bigger root
+      c.setAttribute("r", nodeR + extra);
+      c.setAttribute("fill", fillFor(n));
+      c.setAttribute("stroke","rgba(255,255,255,.85)");
+      c.setAttribute("stroke-width","1.8");
+
+      // readable label (white with dark halo)
+      const t=D.createElementNS(svgNS,"text");
+      t.setAttribute("text-anchor","middle");
+      t.setAttribute("dy",".35em");
+      t.setAttribute("font-size","13");
+      t.setAttribute("fill","#fff");
+      t.setAttribute("stroke","rgba(0,0,0,.65)");
+      t.setAttribute("stroke-width","2.2");
+      t.setAttribute("paint-order","stroke fill");
+      t.textContent = "P" + String(i+1).padStart(2,"0");
+
+      const tip=D.createElementNS(svgNS,"title");
+      tip.textContent=n;
+
+      g.append(sh,c,t,tip);
+      svg.appendChild(g);
+    });
+
+    container.appendChild(svg);
+
+    // Legend
+    const table=D.createElement("table");
+    table.style.width="100%"; table.style.marginTop="12px"; table.style.fontSize="12px";
+    table.style.borderCollapse="collapse";
+    table.innerHTML="<tr><th style='text-align:left;padding:6px;'>Ref</th><th style='text-align:left;padding:6px;'>Portfolio</th><th style='text-align:left;padding:6px;'>Type</th></tr>";
+    all.forEach((n,i)=>{
+      const type = n==="Root Organisation" ? "Root"
+                 : (!hasP(n) && !hasC(n)) ? "Zombie"
+                 : (!hasP(n) ? "Root" : "Active");
+      const tr=D.createElement("tr");
+      tr.innerHTML=`<td style="padding:4px;border:1px solid rgba(255,255,255,.1)">P${String(i+1).padStart(2,"0")}</td>
+                    <td style="padding:4px;border:1px solid rgba(255,255,255,.1)">${n}</td>
+                    <td style="padding:4px;border:1px solid rgba(255,255,255,.1);opacity:.85">${type}</td>`;
+      table.appendChild(tr);
+    });
+    container.appendChild(table);
+  }
+
+  /* ---------- modal + eye trigger (reuses your styles) ---------- */
+  function ensureModal(){
+    let ov=D.getElementById("orgMapOverlay");
+    if(!ov){
+      ov=D.createElement("div");
+      ov.id="orgMapOverlay"; ov.className="confirmOverlay"; ov.style.display="none";
+      ov.innerHTML = `
+  <div class="confirmBox" style="max-width:1100px;width:95vw;max-height:86vh;overflow:auto; position:relative;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div id="Save_Workbook" class="saveWorkbookIcon" title="Save Organisation Map">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="32" height="32">
+        <rect width="48" height="48" rx="8" fill="#107C41"/>
+        <rect x="15" y="8" width="18" height="32" fill="#185C37"/>
+        <path fill="#33C481" d="M33 8h8a1 1 0 0 1 1 1v30a1 1 0 0 1-1 1h-8z"/>
+        <path fill="#fff" d="M22 16l-4 8 4 8h3l-4-8 4-8z"/>
+      </svg>
+    </div>
+    <h4 style="margin:0">Organization Relationship Map</h4>
+  </div>
+  <button id="orgMapClose">Close</button>
+</div>
+
+    <div id="orgMapCanvas"></div>
+
+    <div id="Save_Workbook" class="saveWorkbookIcon" title="Save Organisation Map">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="40" height="40">
+        <rect width="48" height="48" rx="8" fill="#107C41"/>
+        <rect x="15" y="8" width="18" height="32" fill="#185C37"/>
+        <path fill="#33C481" d="M33 8h8a1 1 0 0 1 1 1v30a1 1 0 0 1-1 1h-8z"/>
+        <path fill="#fff" d="M22 16l-4 8 4 8h3l-4-8 4-8z"/>
+      </svg>
+    </div>
+  </div>`;
+
+
+      D.body.appendChild(ov);
+      D.getElementById("orgMapClose").onclick = ()=> ov.style.display="none";
+      ov.onclick = e => { if(e.target===ov) ov.style.display="none"; };
+    }
+    return ov;
+  }
+  function openOrgModal(){
+  const ov = ensureModal();               // make/get the overlay
+  const box = ov.querySelector('.confirmBox');
+  if (box && !ov.querySelector('#Save_Workbook')) {
+    // ensure the box is positioned for absolute children
+    box.style.position = 'relative';
+
+    // inject the Excel icon if missing
+    const div = document.createElement('div');
+    div.id = 'Save_Workbook';
+    div.className = 'saveWorkbookIcon';
+    div.title = 'Save Organisation Map';
+    div.innerHTML =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="40" height="40">'
+    +   '<rect width="48" height="48" rx="8" fill="#107C41"/>'
+    +   '<rect x="15" y="8" width="18" height="32" fill="#185C37"/>'
+    +   '<path fill="#33C481" d="M33 8h8a1 1 0 0 1 1 1v30a1 1 0 0 1-1 1h-8z"/>'
+    +   '<path fill="#fff" d="M22 16l-4 8 4 8h3l-4-8 4-8z"/>'
+    + '</svg>';
+    box.appendChild(div);
+  }
+
+  const canvas = document.getElementById('orgMapCanvas');
+  // (your existing renderer)
+  if (typeof renderOrgTree === 'function') renderOrgTree(canvas);
+
+  ov.style.display = 'flex';
+}
+
+
+  function ensureEye(){
+    // remove stale eye if any
+    const old=D.getElementById("orgMapEye"); if (old) old.remove();
+    const h2=D.querySelector(".top h2") || D.querySelector("#Root_Org_Name")?.closest("h2");
+    if(!h2) return;
+    const eye=D.createElement("button");
+    eye.id="orgMapEye"; eye.type="button"; eye.title="View Organization Map";
+    eye.style.marginLeft="8px"; eye.style.border="none"; eye.style.background="transparent";
+    eye.style.cursor="pointer"; eye.style.color="inherit";
+    eye.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+    eye.onclick=openOrgModal;
+
+    const cs=getComputedStyle(h2);
+    if(!/inline/i.test(cs.display)){ h2.style.display="inline-flex"; h2.style.alignItems="center"; h2.style.gap=".5rem"; }
+    h2.insertAdjacentElement("afterend", eye);
+  }
+
+  if (D.readyState === "loading") D.addEventListener("DOMContentLoaded", ensureEye, {once:true});
+  else ensureEye();
+
+  // optional programmatic hook
+  W.OA_UI = W.OA_UI || {};
+  W.OA_UI.showRelationsMap = openOrgModal;
+
+})();
+</script>
+
+
+<!-- STEP 2: Left pane resize + fade links -->
+  <script>
+  (function(){
+    const grid = document.querySelector('.grid');
+    const leftPane = document.getElementById('leftPane');
+    const handle = document.getElementById('leftResizeHandle');
+
+    if (!grid || !leftPane || !handle) return;
+
+    let defaultLeftW;
+    let minLeftW;
+    let dragging = false;
+    let startX = 0;
+    let startLeftW = 0;
+
+    function ensureDefaults(){
+      if (defaultLeftW) return;
+      defaultLeftW = leftPane.getBoundingClientRect().width;
+      minLeftW = Math.round(defaultLeftW / 2);
+      grid.style.setProperty('--leftPaneW', defaultLeftW + 'px');
+    }
+
+    handle.addEventListener('mousedown', (e)=>{
+      ensureDefaults();
+      dragging = true;
+      startX = e.clientX;
+      startLeftW = leftPane.getBoundingClientRect().width;
+      document.body.style.userSelect = 'none';
+      document.body.classList.add('dragging');  // 👈 activate fade class
+    });
+
+    window.addEventListener('mousemove', (e)=>{
+      if (!dragging) return;
+      const dx = e.clientX - startX;
+      let next = Math.round(startLeftW + dx);
+
+      if (next < minLeftW) next = minLeftW;
+
+      const gridRect = grid.getBoundingClientRect();
+      const gap = parseFloat(getComputedStyle(grid).columnGap) || 0;
+      const rightMin = 240;
+      const maxLeft = Math.round(gridRect.width - gap - rightMin);
+      if (next > maxLeft) next = maxLeft;
+
+      grid.style.setProperty('--leftPaneW', next + 'px');
+    });
+
+    window.addEventListener('mouseup', ()=>{
+      if (!dragging) return;
+      dragging = false;
+      document.body.style.userSelect = '';
+      document.body.classList.remove('dragging');  // 👈 fade back in
+    });
+  })();
+  </script>
+
+
+<script>
+// --- Reset handler ---
+document.addEventListener('DOMContentLoaded', function(){
+  const resetBtn = document.getElementById('resetApp');
+  if (!resetBtn) return;
+
+  resetBtn.addEventListener('click', function(){
+    if (!confirm('This will reset the entire interface to default. Continue?')) return;
+
+    try {
+      // Clear all persisted data
+      sessionStorage.clear();
+      localStorage.clear();
+      // Remove OPFS saved state if supported
+      if (navigator.storage && navigator.storage.getDirectory) {
+        navigator.storage.getDirectory().then(async root => {
+          for await (const [name] of root.entries()) {
+            if (name.includes('Org-OBJ-Metric-JASON-BLOB')) {
+              await root.removeEntry(name);
+            }
+          }
+        });
+      }
+    } catch(e){ console.warn('Failed to clear persistent state:', e); }
+
+    // Reload to defaults
+    location.reload();
+  });
+});
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.19.3/xlsx.full.min.js"></script>
+
+</body>
+</html>
