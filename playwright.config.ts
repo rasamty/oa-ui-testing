@@ -12,6 +12,7 @@ export default defineConfig({
       name: 'Objective Alignment — coverage',
       outputFile: './coverage/index.html',
       coverage: {
+        reports: ['v8', 'console-summary'],
         // keep only the page's own inline script; drop browser internals and the xlsx CDN
         entryFilter: (entry: any) => /Objective(%20| )Alignment/.test(entry.url),
         sourceFilter: (sourcePath: string) => /Objective|v1[01]/.test(sourcePath),
