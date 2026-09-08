@@ -39,6 +39,7 @@ test.describe('Persistence & startup', () => {
 
     page.once('dialog', (d) => d.accept());     // reset uses a native confirm()
     await page.locator('#resetApp').click();
+    await page.waitForLoadState('load');        // wait for the reset's reload to finish
 
     await expect(page.locator('#leftList .item')).toHaveCount(1);
     await expect(page.locator('#rightList .item')).toHaveCount(1);
