@@ -1574,6 +1574,10 @@
 
       // ---- Save now (debounced by content hash; silent; overwrite) ----
       async function saveNow() {
+        // When a reset is in progress the in-memory state is about to be thrown
+        // away and storage has just been wiped — don't let an autosave (heartbeat,
+        // or the pagehide/beforeunload handlers that fire on reload) re-persist it.
+        if (window.__oaHalt) return;
         if (_saveInFlight) return;
         try {
           const snapshot = buildCurrentStateSnapshot();
@@ -6039,7 +6043,7 @@
         const resetBtn = document.getElementById("resetApp");
         if (!resetBtn) return;
 
-        resetBtn.addEventListener("click", function () {
+        resetBtn.addEventListener("click", async function () {
           if (
             !confirm(
               "This will reset the entire interface to default. Continue?",
@@ -6047,19 +6051,25 @@
           )
             return;
 
+          // Stop every autosave path before we wipe anything, so nothing
+          // re-persists the stale in-memory state during teardown / reload.
+          window.__oaHalt = true;
+
           try {
             // Clear all persisted data
             sessionStorage.clear();
             localStorage.clear();
-            // Remove OPFS saved state if supported
+            // Remove OPFS saved state if supported.
+            // Await it so location.reload() below cannot race the (async) clear —
+            // otherwise a slower browser reloads before OPFS is wiped and reads the
+            // stale state straight back in.
             if (navigator.storage && navigator.storage.getDirectory) {
-              navigator.storage.getDirectory().then(async (root) => {
-                for await (const [name] of root.entries()) {
-                  if (name.includes("Org-OBJ-Metric-JASON-BLOB")) {
-                    await root.removeEntry(name);
-                  }
+              const root = await navigator.storage.getDirectory();
+              for await (const [name] of root.entries()) {
+                if (name.includes("Org-OBJ-Metric-JASON-BLOB")) {
+                  await root.removeEntry(name);
                 }
-              });
+              }
             }
           } catch (e) {
             console.warn("Failed to clear persistent state:", e);
