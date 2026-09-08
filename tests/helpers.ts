@@ -43,5 +43,46 @@ export async function flush(page: Page) {
 export const readOA = (page: Page) => page.evaluate(() => (window as any).OA);
 export const readUI = (page: Page) => page.evaluate(() => (window as any).UI);
 
-export const test = base;
+/** Set a range slider's value deterministically and fire the events the app listens for. */
+export async function setRange(locator: any, value: number) {
+  await locator.evaluate((el: HTMLInputElement, v: number) => {
+    el.value = String(v);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  }, value);
+}
+
+/** Performance mode: hover the first metric row, click the first eligible objective's "+". */
+export async function linkFirstPerfPair(page: Page) {
+  await page.locator('#leftList .item.metric').first().hover();
+  const plus = page.locator('#rightList .item.objective .flashPlus').first();
+  await expect(plus).toBeVisible();
+  await plus.click();
+  await expect(page.locator('svg path.link')).toHaveCount(1);
+}
+
+/**
+ * US-45 — cross-cutting invariant, applied to every test automatically:
+ * the page's hidden error bar must never surface, and the live JSON state
+ * block must stay valid JSON for as long as we are on the app.
+ */
+export const test = base.extend<{ noErrors: void }>({
+  noErrors: [
+    async ({ page }, use) => {
+      await use();
+
+      const errShown = await page.locator('#err').isVisible().catch(() => false);
+      expect(errShown, 'the #err bar became visible during this test').toBe(false);
+
+      if (page.url().includes('Objective%20Alignment')) {
+        const raw = await page.locator('#jsonView').innerText().catch(() => '');
+        if (raw.trim()) {
+          expect(() => JSON.parse(raw), '#jsonView is not valid JSON').not.toThrow();
+        }
+      }
+    },
+    { auto: true },
+  ],
+});
+
 export { expect };
