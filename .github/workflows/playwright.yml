@@ -35,3 +35,11 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 21
+
+      - name: Upload the coverage report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 21

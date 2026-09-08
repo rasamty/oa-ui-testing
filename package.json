@@ -11,6 +11,7 @@
     "@playwright/test": "^1.63.0",
     "@types/node": "^26.5.0",
     "http-server": "^14.1.1",
+    "monocart-reporter": "^2.13.0",
     "xlsx": "^0.18.5"
   }
 }
