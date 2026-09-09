@@ -52,6 +52,15 @@ app.MapPut("/api/state", async (AlignmentState state, HttpContext ctx, IStateRep
     return Results.Ok(new { saved = true });
 });
 
+// The page's "Reset to defaults" button calls this so the reload that follows
+// starts from the built-in defaults, not the stored state. Phase 3 scopes it to
+// the caller's own organisation via the auth token.
+app.MapDelete("/api/state", async (HttpContext ctx, IStateRepository db, CancellationToken ct) =>
+{
+    await db.ResetAsync(OrgOf(ctx, testMode), ct);
+    return Results.Ok(new { reset = true });
+});
+
 // Test-only: wipe one org so each Playwright test starts clean.
 if (testMode)
 {

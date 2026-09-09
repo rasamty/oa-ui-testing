@@ -1512,7 +1512,17 @@
         let timer = null,
           retry = 0,
           inFlight = false,
-          pendingSince = 0;
+          pendingSince = 0,
+          // push() is a no-op until the initial pull() has run. This stops the
+          // page's startup wiring (which calls setOrgName -> saveNow) from writing
+          // the default state over whatever the DB already holds.
+          armed = false;
+
+        // Safety net: if pull() never runs for some reason, arm anyway shortly
+        // after load so real edits still persist.
+        setTimeout(function () {
+          armed = true;
+        }, 4000);
 
         // Test isolation only: a ?org= in the URL scopes the API calls so that
         // parallel Playwright workers do not share one database row set.
@@ -1548,6 +1558,7 @@
         }
 
         function push() {
+          if (!armed) return; // startup noise before the first pull() — ignore
           clearTimeout(timer);
           if (!pendingSince) pendingSince = Date.now();
           timer = setTimeout(async function run() {
@@ -1613,10 +1624,27 @@
             return true;
           } catch (_) {
             return false;
+          } finally {
+            armed = true; // from here on, edits are the user's and must persist
           }
         }
 
-        return { push: push, pull: pull, idle: idle, flushNow: flushNow };
+        // Reset support: drop this org's server-side state so the reload that
+        // follows starts from the built-in defaults, not the DB.
+        async function wipe() {
+          clearTimeout(timer);
+          timer = null;
+          pendingSince = 0;
+          while (inFlight) await new Promise((r) => setTimeout(r, 20));
+          try {
+            const r = await fetch(apiUrl(), { method: "DELETE" });
+            return r.ok;
+          } catch (_) {
+            return false;
+          }
+        }
+
+        return { push: push, pull: pull, idle: idle, flushNow: flushNow, wipe: wipe };
       })();
 
       // Save when the page is being hidden (covers navigate-away, tab switch, close)
@@ -6185,6 +6213,15 @@
           // Stop every autosave path before we wipe anything, so nothing
           // re-persists the stale in-memory state during teardown / reload.
           window.__oaHalt = true;
+
+          try {
+            // Drop the server-side copy first (the source of truth on reload).
+            if (window.serverSync && typeof window.serverSync.wipe === "function") {
+              await window.serverSync.wipe();
+            }
+          } catch (e) {
+            console.warn("Failed to clear server state:", e);
+          }
 
           try {
             // Clear all persisted data
