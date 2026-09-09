@@ -118,6 +118,32 @@ var noSuchUserHash = app.Services.GetRequiredService<IPasswordHasher<User>>()
 await app.Services.GetRequiredService<IStateRepository>().EnsureSchemaAsync();
 await app.Services.GetRequiredService<IUserRepository>().EnsureSchemaAsync();
 
+// First-run bootstrap: when Alignment:Bootstrap:User/Password are set (an
+// app setting on the host) and that account does not exist yet, create it.
+// Lets a fresh deployment get its first sign-in account without SSH. Idempotent
+// — it never resets an existing user, so the settings can be left in place or
+// removed after the first start.
+{
+    var bootUser = app.Configuration["Alignment:Bootstrap:User"];
+    var bootPass = app.Configuration["Alignment:Bootstrap:Password"];
+    if (!string.IsNullOrWhiteSpace(bootUser) && !string.IsNullOrWhiteSpace(bootPass))
+    {
+        var repo = app.Services.GetRequiredService<IUserRepository>();
+        if (await repo.FindByUsernameAsync(bootUser) is null)
+        {
+            var hasher = app.Services.GetRequiredService<IPasswordHasher<User>>();
+            await repo.CreateAsync(new User
+            {
+                Id = Guid.NewGuid().ToString("n"),
+                Username = bootUser,
+                PasswordHash = hasher.HashPassword(null!, bootPass),
+                OrganisationId = "demo",
+            });
+            app.Logger.LogWarning("Bootstrap: created sign-in account '{User}'", bootUser);
+        }
+    }
+}
+
 app.UseDefaultFiles();   // "/" -> wwwroot/index.html
 app.UseStaticFiles();    // serve wwwroot/* (the page and its assets stay public)
 
