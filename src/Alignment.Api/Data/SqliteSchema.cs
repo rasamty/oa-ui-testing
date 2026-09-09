@@ -78,5 +78,19 @@ public static class SqliteSchema
           value           TEXT NOT NULL,
           PRIMARY KEY (organisation_id, key)
         );
+
+        -- Phase 2: a person who can sign in. One organisation per user for now;
+        -- Phase 3 turns organisation_id into a real multi-tenant boundary.
+        CREATE TABLE IF NOT EXISTS users (
+          id                   TEXT PRIMARY KEY,           -- generated GUID, never the username
+          username             TEXT NOT NULL,              -- as typed / displayed
+          username_lower       TEXT NOT NULL UNIQUE,       -- lower-cased: case-insensitive login + uniqueness
+          password_hash        TEXT NOT NULL,              -- PasswordHasher output — never the raw password
+          organisation_id      TEXT NOT NULL,              -- which board this user sees
+          is_active            INTEGER NOT NULL DEFAULT 1, -- 0 = locked out on the next request
+          must_change_password INTEGER NOT NULL DEFAULT 0, -- reserved for a future reset flow
+          created_utc          TEXT NOT NULL,
+          last_login_utc       TEXT                        -- null until the first successful login
+        );
         """;
 }
