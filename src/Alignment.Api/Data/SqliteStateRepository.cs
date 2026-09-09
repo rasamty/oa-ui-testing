@@ -193,7 +193,7 @@ public sealed class SqliteStateRepository : IStateRepository
             await cmd.ExecuteNonQueryAsync(ct);
         }
 
-        await WipeAsync(Exec, org);
+        await WipeAsync(Exec);
 
         var now = DateTime.UtcNow.ToString("o");
         await Exec("INSERT INTO organisations(id, name, created_utc) VALUES($o, $n, $t) " +
@@ -281,20 +281,23 @@ public sealed class SqliteStateRepository : IStateRepository
             foreach (var (n, v) in ps) cmd.Parameters.AddWithValue(n, v ?? DBNull.Value);
             await cmd.ExecuteNonQueryAsync(ct);
         }
-        await WipeAsync(Exec, org);
-        await Exec("DELETE FROM organisations WHERE id = $o;", ("$o", org));
+        await WipeAsync(Exec);
+        await Exec("DELETE FROM organisations;");
         await tx.CommitAsync(ct);
     }
 
     // ---------------------------------------------------------------- helpers
-    private static async Task WipeAsync(Func<string, (string, object?)[], Task> exec, string org)
+    // One organisation per file (see PathFor), so a wipe clears every row — no
+    // organisation_id filter. This also self-heals a file left polluted by an
+    // older build that shared one database across organisations.
+    private static async Task WipeAsync(Func<string, (string, object?)[], Task> exec)
     {
         foreach (var t in new[]
         {
             "metric_objective_links", "objective_objective_links",
             "metrics", "objectives", "portfolios", "ui_state", "app_meta"
         })
-            await exec($"DELETE FROM {t} WHERE organisation_id = $o;", new (string, object?)[] { ("$o", org) });
+            await exec($"DELETE FROM {t};", System.Array.Empty<(string, object?)>());
     }
 
     private static void Add<T>(Dictionary<string, List<T>> map, string key, T value)
