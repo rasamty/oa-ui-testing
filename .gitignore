@@ -22,9 +22,11 @@ node_modules/
 # Local input drafts (the tracked plan lives in Docs/)
 /Draft Folder/
 
-# Word documents (reference only, not tracked)
+# Docs are reference/operator material, local only — some hold plaintext
+# credentials. The tracked plan is generated from the scratchpad generators.
 *.docx
 *.doc
+/Docs/*.txt
 
 # .NET
 bin/
