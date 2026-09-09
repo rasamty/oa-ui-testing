@@ -96,6 +96,13 @@ builder.Services
         o.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
             ? CookieSecurePolicy.SameAsRequest           // http on localhost is fine
             : CookieSecurePolicy.Always;                  // HTTPS only in production
+        // When the app is reached through a proxy on a different hostname than the
+        // one it thinks it is serving (e.g. Cloudflare fronting align.repriori.com
+        // but forwarding to *.azurewebsites.net), pin the cookie to the public
+        // hostname so the browser sends it back.
+        var cookieDomain = builder.Configuration["Alignment:Auth:CookieDomain"];
+        if (!string.IsNullOrWhiteSpace(cookieDomain))
+            o.Cookie.Domain = cookieDomain;
         o.ExpireTimeSpan = TimeSpan.FromHours(
             builder.Configuration.GetValue("Alignment:Auth:SessionHours", 12.0)); // appsettings; restart to apply
         o.SlidingExpiration = true;                       // active use keeps it alive
