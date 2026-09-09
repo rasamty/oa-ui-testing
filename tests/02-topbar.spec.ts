@@ -1,4 +1,4 @@
-import { test, expect, openApp, state } from './helpers';
+import { test, expect, openApp, state, flush } from './helpers';
 
 test.describe('Top bar — organisation name & theme', () => {
 
@@ -16,6 +16,7 @@ test.describe('Top bar — organisation name & theme', () => {
     const s = await state(page);
     expect(s['Root Org Name']).toBe('Acme Health');
 
+    await flush(page);                   // the rename must reach the DB before we test the reload
     await page.reload();
     await expect(page.locator('#Root_Org_Name')).toHaveText('Acme Health');
   });

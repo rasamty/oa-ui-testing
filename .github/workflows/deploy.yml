@@ -1,0 +1,50 @@
+name: deploy
+
+# Fires only on a push to `prod` (i.e. a release). Re-runs the whole test suite
+# on the release commit, then pauses for rasamty's approval on the `production`
+# environment before it publishes and deploys to Azure App Service.
+on:
+  push:
+    branches: [ prod ]
+
+jobs:
+  verify:
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production        # <-- rasamty approval required here
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish
+        run: dotnet publish src/Alignment.Api -c Release -o publish
+
+      - name: Sign in to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ secrets.AZURE_APP_NAME }}
+          package: publish
+
+      - name: Smoke test the live site
+        run: |
+          url="https://${{ secrets.AZURE_APP_NAME }}.azurewebsites.net/health"
+          echo "checking $url"
+          for i in 1 2 3 4 5 6; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" "$url" || true)
+            echo "attempt $i: HTTP $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 15
+          done
+          echo "health check never returned 200 — the deploy may be broken"
+          exit 1

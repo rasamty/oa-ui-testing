@@ -1096,9 +1096,152 @@
         opacity: 0 !important; /* beats inline styles */
         pointer-events: none !important;
       }
+
+      /* Phase 2: sign-in gate + change-password panel */
+      #authGate,
+      #pwPanel {
+        position: fixed;
+        inset: 0;
+        z-index: 100000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(8, 10, 18, 0.78);
+        backdrop-filter: blur(3px);
+      }
+      #authGate[hidden],
+      #pwPanel[hidden] {
+        display: none;
+      }
+      #authForm,
+      #pwForm {
+        width: 300px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        padding: 28px 30px;
+        border-radius: 12px;
+        background: #1b1f2a;
+        color: #e8eaf0;
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+        font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      }
+      #authForm h2,
+      #pwForm h2 {
+        margin: 0;
+        font-size: 18px;
+      }
+      #authForm label,
+      #pwForm label {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 12px;
+        opacity: 0.8;
+      }
+      #authForm input,
+      #pwForm input {
+        padding: 8px 10px;
+        border: 1px solid #3a4152;
+        border-radius: 6px;
+        background: #11141d;
+        color: inherit;
+        font-size: 14px;
+      }
+      #authSubmit,
+      #pwSubmit {
+        margin-top: 4px;
+        padding: 9px;
+        border: 0;
+        border-radius: 6px;
+        background: #3a7bd5;
+        color: #fff;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      #authSubmit:disabled,
+      #pwSubmit:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+      #authErr,
+      #pwMsg {
+        margin: 0;
+        color: #ff6b6b;
+        font-size: 12px;
+      }
+      .topLink {
+        background: transparent;
+        border: 1px solid var(--border, #3a4152);
+        color: inherit;
+        font: inherit;
+        font-size: 12px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+        opacity: 0.8;
+      }
+      .topLink:hover {
+        opacity: 1;
+      }
+      .topLink[hidden] {
+        display: none;
+      }
     </style>
   </head>
   <body>
+    <!-- Phase 2: hidden until GET /api/auth/me says we are not signed in -->
+    <div id="authGate" hidden>
+      <form id="authForm" autocomplete="on">
+        <h2>Sign in</h2>
+        <label
+          >Username
+          <input
+            id="authUser"
+            name="username"
+            autocomplete="username"
+            autocapitalize="off"
+            spellcheck="false"
+            required
+        /></label>
+        <label
+          >Password
+          <input
+            id="authPass"
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            required
+        /></label>
+        <button type="submit" id="authSubmit">Sign in</button>
+        <p id="authErr" role="alert" hidden></p>
+      </form>
+    </div>
+
+    <!-- Phase 2: change your own password (opened from the top bar) -->
+    <div id="pwPanel" hidden>
+      <form id="pwForm" autocomplete="off">
+        <h2>Change password</h2>
+        <label
+          >Current password
+          <input id="pwCurrent" type="password" autocomplete="off" required
+        /></label>
+        <label
+          >New password
+          <input id="pwNew" type="password" autocomplete="off" minlength="8" required
+        /></label>
+        <label
+          >Confirm new password
+          <input id="pwConfirm" type="password" autocomplete="off" required
+        /></label>
+        <div style="display: flex; gap: 8px; margin-top: 4px">
+          <button type="submit" id="pwSubmit">Change</button>
+          <button type="button" id="pwCancel" class="topLink">Cancel</button>
+        </div>
+        <p id="pwMsg" role="alert" hidden></p>
+      </form>
+    </div>
+
     <div class="top">
       <h2 style="margin: 0; display: flex; gap: 0.5rem; align-items: center">
         <span>Portfolio Alignment:</span>
@@ -1109,18 +1252,26 @@
           >My Organisation</span
         >
       </h2>
-      <button
-        id="themeToggle"
-        class="themeToggle"
-        title="Toggle theme"
-        aria-label="Toggle theme"
-      >
-        <span class="sun" aria-hidden="true">☀️</span
-        ><span class="moon" aria-hidden="true">🌙</span>
-      </button>
-      <span id="navigate_to_Performance_page" title="Go to Performance Page"
-        >➜</span
-      >
+      <div style="display: flex; align-items: center; gap: 0.75rem">
+        <button id="changePwBtn" class="topLink" type="button" title="Change password" hidden>
+          Change password
+        </button>
+        <button id="signOutBtn" class="topLink" type="button" title="Sign out" hidden>
+          Sign out
+        </button>
+        <button
+          id="themeToggle"
+          class="themeToggle"
+          title="Toggle theme"
+          aria-label="Toggle theme"
+        >
+          <span class="sun" aria-hidden="true">☀️</span
+          ><span class="moon" aria-hidden="true">🌙</span>
+        </button>
+        <span id="navigate_to_Performance_page" title="Go to Performance Page"
+          >➜</span
+        >
+      </div>
     </div>
 
     <div class="headerRow">
@@ -1505,6 +1656,378 @@
       // Kick off load ASAP on first render (open or navigation to this page)
       document.addEventListener("DOMContentLoaded", loadOnStartup);
 
+      // === Sign-in gate (Phase 2) ===
+      // A small username/password panel. Shown when GET /api/auth/me says we are
+      // not authenticated, or when a later request unexpectedly returns 401.
+      window.authGate = (function () {
+        let gate, form, userEl, passEl, errEl, submitEl, signOutEl;
+        let resolveLogin = null; // set while loadOnStartup is waiting for a sign-in
+
+        function els() {
+          gate = document.getElementById("authGate");
+          form = document.getElementById("authForm");
+          userEl = document.getElementById("authUser");
+          passEl = document.getElementById("authPass");
+          errEl = document.getElementById("authErr");
+          submitEl = document.getElementById("authSubmit");
+          signOutEl = document.getElementById("signOutBtn");
+        }
+
+        // Reveal the signed-in controls (called once we know we're authenticated).
+        function markSignedIn() {
+          if (!signOutEl) els();
+          if (signOutEl) signOutEl.hidden = false;
+          var cp = document.getElementById("changePwBtn");
+          if (cp) cp.hidden = false;
+        }
+
+        function wire() {
+          if (!form) els();
+          if (signOutEl && !signOutEl.__wired) {
+            signOutEl.__wired = true;
+            signOutEl.addEventListener("click", async function () {
+              signOutEl.disabled = true;
+              try {
+                await fetch("/api/auth/logout", { method: "POST" });
+              } catch (_) {}
+              location.reload(); // startup re-runs -> sign-in panel
+            });
+          }
+          if (!form || form.__wired) return;
+          form.__wired = true;
+          form.addEventListener("submit", async function (e) {
+            e.preventDefault();
+            const u = (userEl.value || "").trim();
+            const p = passEl.value || "";
+            if (!u || !p) return;
+            submitEl.disabled = true;
+            errEl.hidden = true;
+            try {
+              const r = await fetch("/api/auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username: u, password: p }),
+              });
+              if (r.ok) {
+                passEl.value = "";
+                hide();
+                markSignedIn();
+                if (resolveLogin) {
+                  const done = resolveLogin;
+                  resolveLogin = null;
+                  done();
+                } else {
+                  // session-expired path: reload so startup re-runs cleanly
+                  location.reload();
+                }
+              } else {
+                show("Wrong username or password");
+              }
+            } catch (_) {
+              show("Could not reach the server — try again");
+            } finally {
+              submitEl.disabled = false;
+            }
+          });
+        }
+
+        function show(msg) {
+          if (!gate) els();
+          wire();
+          if (!gate) return;
+          gate.hidden = false;
+          if (errEl) {
+            errEl.hidden = !msg;
+            errEl.textContent = msg || "";
+          }
+          setTimeout(function () {
+            try {
+              userEl.focus();
+            } catch (_) {}
+          }, 30);
+        }
+
+        function hide() {
+          if (!gate) els();
+          if (gate) gate.hidden = true;
+        }
+
+        async function check() {
+          try {
+            const r = await fetch("/api/auth/me", {
+              headers: { Accept: "application/json" },
+            });
+            if (r.ok) markSignedIn();
+            return r.ok;
+          } catch (_) {
+            return false;
+          }
+        }
+
+        // Show the panel and resolve once the user signs in successfully.
+        function require() {
+          show();
+          return new Promise(function (res) {
+            resolveLogin = res;
+          });
+        }
+
+        // Called by serverSync when a request unexpectedly returns 401.
+        function onUnauthorized() {
+          if (resolveLogin) return; // already waiting on the panel
+          show("Your session expired — please sign in again");
+        }
+
+        document.addEventListener("DOMContentLoaded", wire);
+        return { check, require, show, hide, onUnauthorized };
+      })();
+
+      // === Change password (Phase 2) ===
+      // A small modal opened from the "Change password" button in the top bar.
+      window.changePassword = (function () {
+        let panel, form, curEl, newEl, confEl, msgEl, submitEl, cancelEl, openEl;
+
+        function els() {
+          panel = document.getElementById("pwPanel");
+          form = document.getElementById("pwForm");
+          curEl = document.getElementById("pwCurrent");
+          newEl = document.getElementById("pwNew");
+          confEl = document.getElementById("pwConfirm");
+          msgEl = document.getElementById("pwMsg");
+          submitEl = document.getElementById("pwSubmit");
+          cancelEl = document.getElementById("pwCancel");
+          openEl = document.getElementById("changePwBtn");
+        }
+
+        function msg(text, ok) {
+          if (!msgEl) els();
+          if (!msgEl) return;
+          msgEl.hidden = false;
+          msgEl.textContent = text;
+          msgEl.style.color = ok ? "#4caf50" : "#ff6b6b";
+        }
+
+        function open() {
+          els();
+          if (!panel) return;
+          form.reset();
+          msgEl.hidden = true;
+          panel.hidden = false;
+          try {
+            curEl.focus();
+          } catch (_) {}
+        }
+
+        function close() {
+          if (!panel) els();
+          if (panel) panel.hidden = true;
+        }
+
+        function wire() {
+          els();
+          if (openEl && !openEl.__wired) {
+            openEl.__wired = true;
+            openEl.addEventListener("click", open);
+          }
+          if (form && !form.__wired) {
+            form.__wired = true;
+            cancelEl.addEventListener("click", close);
+            form.addEventListener("submit", async function (e) {
+              e.preventDefault();
+              const cur = curEl.value || "";
+              const nw = newEl.value || "";
+              const cf = confEl.value || "";
+              if (nw !== cf) return msg("The two new passwords do not match");
+              if (nw.length < 8) return msg("New password must be at least 8 characters");
+              if (nw === cur) return msg("New password must be different from the current one");
+
+              submitEl.disabled = true;
+              msgEl.hidden = true;
+              try {
+                const r = await fetch("/api/auth/change-password", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ currentPassword: cur, newPassword: nw }),
+                });
+                const body = await r.json().catch(function () {
+                  return {};
+                });
+                if (r.ok) {
+                  form.reset();
+                  msg("Password changed.", true);
+                  setTimeout(close, 1200);
+                } else if (r.status === 401) {
+                  close();
+                  if (window.authGate) window.authGate.onUnauthorized();
+                } else {
+                  msg(body.error || "Could not change the password");
+                }
+              } catch (_) {
+                msg("Could not reach the server — try again");
+              } finally {
+                submitEl.disabled = false;
+              }
+            });
+          }
+        }
+
+        document.addEventListener("DOMContentLoaded", wire);
+        return { open, close, wire };
+      })();
+
+      // === Server persistence (Phase 1): the SQLite-backed API is the source of truth. ===
+      // sessionStorage / OPFS stay as an offline cache. This wrapper is deliberately
+      // thin so Phase 3 can drop in an Authorization header without touching the page.
+      window.serverSync = (function () {
+        let timer = null,
+          retry = 0,
+          inFlight = false,
+          pendingSince = 0,
+          // push() is a no-op until the initial pull() has run (pull() lives past
+          // the sign-in gate in loadOnStartup). This stops the page's startup
+          // wiring — and the heartbeat while the login panel is up — from PUTting
+          // over the DB or hammering the server with 401s.
+          armed = false;
+
+        // The sign-in panel is showing: do not touch the API.
+        function gateVisible() {
+          var g = document.getElementById("authGate");
+          return !!(g && !g.hidden);
+        }
+
+        // Test isolation only: a ?org= in the URL scopes the API calls so that
+        // parallel Playwright workers do not share one database row set.
+        function apiUrl() {
+          try {
+            var org = new URLSearchParams(location.search).get("org");
+            return org ? "/api/state?org=" + encodeURIComponent(org) : "/api/state";
+          } catch (_) {
+            return "/api/state";
+          }
+        }
+
+        // The org name lives in sessionStorage ("oa_org_name"), mirrored into the
+        // #Root_Org_Name element. getOrgName() is not in this IIFE's scope, so read
+        // it directly the same way the rest of the page does.
+        function orgName() {
+          try {
+            var s = (sessionStorage.getItem("oa_org_name") || "").trim();
+            if (s) return s;
+          } catch (_) {}
+          var el = document.getElementById("Root_Org_Name");
+          var t = ((el && el.textContent) || "").trim();
+          return t || "My Organisation";
+        }
+
+        function payload() {
+          return {
+            UI: window.UI,
+            OA: window.OA,
+            colorScale: window.colorScale,
+            "Root Org Name": orgName(),
+          };
+        }
+
+        // The session cookie expired mid-use — hand off to the sign-in panel.
+        function note401(r) {
+          if (r && r.status === 401 && window.authGate) window.authGate.onUnauthorized();
+        }
+
+        function push() {
+          if (!armed || gateVisible()) return; // startup noise / not signed in
+          clearTimeout(timer);
+          if (!pendingSince) pendingSince = Date.now();
+          timer = setTimeout(async function run() {
+            timer = null;
+            if (gateVisible()) return; // signed out while we waited
+            if (inFlight) {
+              push();
+              return;
+            }
+            inFlight = true;
+            try {
+              const r = await fetch(apiUrl(), {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload()),
+              });
+              note401(r);
+              if (!r.ok) throw new Error("HTTP " + r.status);
+              retry = 0;
+              pendingSince = 0;
+            } catch (e) {
+              // Server unreachable: keep the in-memory edits, back off, keep retrying.
+              // Never pull() over the top of unsaved work.
+              retry = Math.min(retry + 1, 6);
+              timer = setTimeout(push, 1000 * retry);
+            } finally {
+              inFlight = false;
+            }
+          }, 250);
+        }
+
+        // Test helper: true when nothing is scheduled and nothing is in flight.
+        function idle() {
+          return !timer && !inFlight && !pendingSince;
+        }
+
+        // Test helper: PUT the current state immediately and resolve when it lands.
+        async function flushNow() {
+          if (gateVisible()) return false;
+          clearTimeout(timer);
+          timer = null;
+          while (inFlight) await new Promise((r) => setTimeout(r, 20));
+          inFlight = true;
+          try {
+            const r = await fetch(apiUrl(), {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload()),
+            });
+            note401(r);
+            pendingSince = 0;
+            return r.ok;
+          } catch (_) {
+            return false;
+          } finally {
+            inFlight = false;
+          }
+        }
+
+        async function pull() {
+          try {
+            const r = await fetch(apiUrl());
+            note401(r);
+            if (!r.ok) return false;
+            const s = await r.json();
+            if (!s || s.exists === false) return false; // empty DB -> keep HTML defaults
+            if (typeof applyLoadedState === "function") applyLoadedState(s);
+            return true;
+          } catch (_) {
+            return false;
+          } finally {
+            armed = true; // from here on, edits are the user's and must persist
+          }
+        }
+
+        // Reset support: drop this org's server-side state so the reload that
+        // follows starts from the built-in defaults, not the DB.
+        async function wipe() {
+          clearTimeout(timer);
+          timer = null;
+          pendingSince = 0;
+          while (inFlight) await new Promise((r) => setTimeout(r, 20));
+          try {
+            const r = await fetch(apiUrl(), { method: "DELETE" });
+            return r.ok;
+          } catch (_) {
+            return false;
+          }
+        }
+
+        return { push: push, pull: pull, idle: idle, flushNow: flushNow, wipe: wipe };
+      })();
+
       // Save when the page is being hidden (covers navigate-away, tab switch, close)
       // and also as a final guard on beforeunload.
       document.addEventListener("visibilitychange", () => {
@@ -1543,6 +2066,17 @@
       // ---- Load on first render / navigation-in ----
       async function loadOnStartup() {
         try {
+          // Phase 2: no board until we are signed in. If not, show the panel and
+          // wait here until the user logs in successfully.
+          if (window.authGate && !(await window.authGate.check())) {
+            await window.authGate.require();
+          }
+        } catch (_) {}
+        try {
+          // Server first: the API is the source of truth in Phase 1.
+          if (window.serverSync && (await window.serverSync.pull())) return;
+        } catch (_) {}
+        try {
           // Try OPFS first
           const state = await readFromOPFS(OA_STATE_FILENAME);
           if (state) {
@@ -1578,6 +2112,9 @@
         // away and storage has just been wiped — don't let an autosave (heartbeat,
         // or the pagehide/beforeunload handlers that fire on reload) re-persist it.
         if (window.__oaHalt) return;
+        try {
+          if (window.serverSync) window.serverSync.push();
+        } catch (_) {}
         if (_saveInFlight) return;
         try {
           const snapshot = buildCurrentStateSnapshot();
@@ -2011,6 +2548,9 @@
             );
           } catch (_) {}
           updateJson();
+          try {
+            if (window.serverSync) window.serverSync.push();
+          } catch (_) {}
         }
         function saveUI() {
           try {
@@ -6063,6 +6603,15 @@
           window.__oaHalt = true;
 
           try {
+            // Drop the server-side copy first (the source of truth on reload).
+            if (window.serverSync && typeof window.serverSync.wipe === "function") {
+              await window.serverSync.wipe();
+            }
+          } catch (e) {
+            console.warn("Failed to clear server state:", e);
+          }
+
+          try {
             // Clear all persisted data
             sessionStorage.clear();
             localStorage.clear();
@@ -6088,6 +6637,11 @@
       });
     </script>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.19.3/xlsx.full.min.js"></script>
+    <!-- Excel export only. `defer` keeps it off the load path (and out of the
+         way of DOMContentLoaded), so a slow CDN never delays the page. -->
+    <script
+      defer
+      src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.19.3/xlsx.full.min.js"
+    ></script>
   </body>
 </html>

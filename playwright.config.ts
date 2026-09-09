@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { STORAGE_STATE } from './tests/auth-constants';
 
 export default defineConfig({
   testDir: './tests',
@@ -13,9 +14,10 @@ export default defineConfig({
       outputFile: './coverage/index.html',
       coverage: {
         reports: ['v8', 'console-summary'],
-        // keep only the page's own inline script; drop browser internals and the xlsx CDN
-        entryFilter: (entry: any) => /Objective(%20| )Alignment/.test(entry.url),
-        sourceFilter: (sourcePath: string) => /Objective|v1[01]/.test(sourcePath),
+        // the page's own inline script is served from the app root now
+        entryFilter: (entry: any) =>
+          /localhost:4173\/(?:$|\?|#)/.test(entry.url) || /Objective/i.test(entry.url),
+        sourceFilter: (sourcePath: string) => !/node_modules/.test(sourcePath),
       },
     }],
   ],
@@ -27,16 +29,25 @@ export default defineConfig({
     video: 'retain-on-failure',
   },
 
+  // The ASP.NET Core app serves the page AND the /api. It owns the SQLite database.
   webServer: {
-    command: 'npx http-server . -p 4173 -c-1 --silent',
-    url: 'http://localhost:4173',
+    command: 'dotnet run --project src/Alignment.Api -c Release --no-launch-profile',
+    url: 'http://localhost:4173/health',
     reuseExistingServer: !process.env.CI,
-    timeout: 30_000,
+    timeout: 120_000,
+    env: {
+      ASPNETCORE_URLS: 'http://localhost:4173',
+      ASPNETCORE_ENVIRONMENT: 'Development',
+      Alignment__TestMode: 'true',
+    },
   },
 
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'firefox',  use: { ...devices['Desktop Firefox'] } },
-    { name: 'webkit',   use: { ...devices['Desktop Safari'] } },
+    // Signs in once and writes tests/.auth/state.json.
+    { name: 'setup', testMatch: /auth\.setup\.ts/ },
+
+    { name: 'chromium', dependencies: ['setup'], use: { ...devices['Desktop Chrome'], storageState: STORAGE_STATE } },
+    { name: 'firefox',  dependencies: ['setup'], use: { ...devices['Desktop Firefox'], storageState: STORAGE_STATE } },
+    { name: 'webkit',   dependencies: ['setup'], use: { ...devices['Desktop Safari'],  storageState: STORAGE_STATE } },
   ],
 });
