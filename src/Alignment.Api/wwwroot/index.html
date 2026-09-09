@@ -1505,6 +1505,148 @@
       // Kick off load ASAP on first render (open or navigation to this page)
       document.addEventListener("DOMContentLoaded", loadOnStartup);
 
+      // === Server persistence (Phase 1): the SQLite-backed API is the source of truth. ===
+      // sessionStorage / OPFS stay as an offline cache. This wrapper is deliberately
+      // thin so Phase 3 can drop in an Authorization header without touching the page.
+      window.serverSync = (function () {
+        let timer = null,
+          retry = 0,
+          inFlight = false,
+          pendingSince = 0,
+          // push() is a no-op until the initial pull() has run. This stops the
+          // page's startup wiring (which calls setOrgName -> saveNow) from writing
+          // the default state over whatever the DB already holds.
+          armed = false;
+
+        // Safety net: if pull() never runs for some reason, arm anyway shortly
+        // after load so real edits still persist.
+        setTimeout(function () {
+          armed = true;
+        }, 4000);
+
+        // Test isolation only: a ?org= in the URL scopes the API calls so that
+        // parallel Playwright workers do not share one database row set.
+        function apiUrl() {
+          try {
+            var org = new URLSearchParams(location.search).get("org");
+            return org ? "/api/state?org=" + encodeURIComponent(org) : "/api/state";
+          } catch (_) {
+            return "/api/state";
+          }
+        }
+
+        // The org name lives in sessionStorage ("oa_org_name"), mirrored into the
+        // #Root_Org_Name element. getOrgName() is not in this IIFE's scope, so read
+        // it directly the same way the rest of the page does.
+        function orgName() {
+          try {
+            var s = (sessionStorage.getItem("oa_org_name") || "").trim();
+            if (s) return s;
+          } catch (_) {}
+          var el = document.getElementById("Root_Org_Name");
+          var t = ((el && el.textContent) || "").trim();
+          return t || "My Organisation";
+        }
+
+        function payload() {
+          return {
+            UI: window.UI,
+            OA: window.OA,
+            colorScale: window.colorScale,
+            "Root Org Name": orgName(),
+          };
+        }
+
+        function push() {
+          if (!armed) return; // startup noise before the first pull() — ignore
+          clearTimeout(timer);
+          if (!pendingSince) pendingSince = Date.now();
+          timer = setTimeout(async function run() {
+            timer = null;
+            if (inFlight) {
+              push();
+              return;
+            }
+            inFlight = true;
+            try {
+              const r = await fetch(apiUrl(), {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload()),
+              });
+              if (!r.ok) throw new Error("HTTP " + r.status);
+              retry = 0;
+              pendingSince = 0;
+            } catch (e) {
+              // Server unreachable: keep the in-memory edits, back off, keep retrying.
+              // Never pull() over the top of unsaved work.
+              retry = Math.min(retry + 1, 6);
+              timer = setTimeout(push, 1000 * retry);
+            } finally {
+              inFlight = false;
+            }
+          }, 250);
+        }
+
+        // Test helper: true when nothing is scheduled and nothing is in flight.
+        function idle() {
+          return !timer && !inFlight && !pendingSince;
+        }
+
+        // Test helper: PUT the current state immediately and resolve when it lands.
+        async function flushNow() {
+          clearTimeout(timer);
+          timer = null;
+          while (inFlight) await new Promise((r) => setTimeout(r, 20));
+          inFlight = true;
+          try {
+            const r = await fetch(apiUrl(), {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload()),
+            });
+            pendingSince = 0;
+            return r.ok;
+          } catch (_) {
+            return false;
+          } finally {
+            inFlight = false;
+          }
+        }
+
+        async function pull() {
+          try {
+            const r = await fetch(apiUrl());
+            if (!r.ok) return false;
+            const s = await r.json();
+            if (!s || s.exists === false) return false; // empty DB -> keep HTML defaults
+            if (typeof applyLoadedState === "function") applyLoadedState(s);
+            return true;
+          } catch (_) {
+            return false;
+          } finally {
+            armed = true; // from here on, edits are the user's and must persist
+          }
+        }
+
+        // Reset support: drop this org's server-side state so the reload that
+        // follows starts from the built-in defaults, not the DB.
+        async function wipe() {
+          clearTimeout(timer);
+          timer = null;
+          pendingSince = 0;
+          while (inFlight) await new Promise((r) => setTimeout(r, 20));
+          try {
+            const r = await fetch(apiUrl(), { method: "DELETE" });
+            return r.ok;
+          } catch (_) {
+            return false;
+          }
+        }
+
+        return { push: push, pull: pull, idle: idle, flushNow: flushNow, wipe: wipe };
+      })();
+
       // Save when the page is being hidden (covers navigate-away, tab switch, close)
       // and also as a final guard on beforeunload.
       document.addEventListener("visibilitychange", () => {
@@ -1543,6 +1685,10 @@
       // ---- Load on first render / navigation-in ----
       async function loadOnStartup() {
         try {
+          // Server first: the API is the source of truth in Phase 1.
+          if (window.serverSync && (await window.serverSync.pull())) return;
+        } catch (_) {}
+        try {
           // Try OPFS first
           const state = await readFromOPFS(OA_STATE_FILENAME);
           if (state) {
@@ -1578,6 +1724,9 @@
         // away and storage has just been wiped — don't let an autosave (heartbeat,
         // or the pagehide/beforeunload handlers that fire on reload) re-persist it.
         if (window.__oaHalt) return;
+        try {
+          if (window.serverSync) window.serverSync.push();
+        } catch (_) {}
         if (_saveInFlight) return;
         try {
           const snapshot = buildCurrentStateSnapshot();
@@ -2011,6 +2160,9 @@
             );
           } catch (_) {}
           updateJson();
+          try {
+            if (window.serverSync) window.serverSync.push();
+          } catch (_) {}
         }
         function saveUI() {
           try {
@@ -6061,6 +6213,15 @@
           // Stop every autosave path before we wipe anything, so nothing
           // re-persists the stale in-memory state during teardown / reload.
           window.__oaHalt = true;
+
+          try {
+            // Drop the server-side copy first (the source of truth on reload).
+            if (window.serverSync && typeof window.serverSync.wipe === "function") {
+              await window.serverSync.wipe();
+            }
+          } catch (e) {
+            console.warn("Failed to clear server state:", e);
+          }
 
           try {
             // Clear all persisted data

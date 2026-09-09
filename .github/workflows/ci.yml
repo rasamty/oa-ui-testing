@@ -1,0 +1,56 @@
+name: ci
+
+# The single gate for both branches: builds and unit-tests the C# API, then runs
+# the whole Playwright suite (Playwright itself starts the ASP.NET app). The
+# required status check on `main` and `prod` is this workflow's job: `ci`.
+on:
+  push:
+    branches: [ main, prod ]
+  pull_request:
+    branches: [ main, prod ]
+  workflow_call: {}
+
+jobs:
+  ci:
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Build and unit-test the API
+        run: |
+          dotnet restore
+          dotnet build --no-restore -c Release
+          dotnet test  --no-build   -c Release --logger "console;verbosity=minimal"
+
+      - name: Install Node deps and browsers
+        run: |
+          npm ci
+          npx playwright install --with-deps
+
+      - name: Run the browser suite
+        run: npx playwright test
+
+      - name: Upload the HTML results report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 21
+
+      - name: Upload the coverage report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 21

@@ -8,8 +8,26 @@ node_modules/
 /playwright/.auth/
 
 /coverage/
+/monocart-report/
 /audit/
+
+# Visual Studio
+.vs/
+
+# Local input drafts (the tracked plan lives in Docs/)
+/Draft Folder/
 
 # Word documents (reference only, not tracked)
 *.docx
 *.doc
+
+# .NET
+bin/
+obj/
+publish/
+*.user
+
+# SQLite
+*.db
+*.db-wal
+*.db-shm

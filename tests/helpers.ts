@@ -1,19 +1,23 @@
 import { test as base, expect, type Page } from '@playwright/test';
 import { addCoverageReport } from 'monocart-reporter';
 
-const FILES = {
-  v11: '/app/Objective%20Alignment%20v11.html',
-  v10: '/app/Objective%20Alignment%20v10.html',
-} as const;
+/**
+ * Each test gets its own organisation id (stable per test, unique across the
+ * parallel workers) so tests never share a database row set. The ?org= is
+ * honoured by the server only when Alignment:TestMode is on.
+ */
+function testOrg(): string {
+  return 'test-' + base.info().testId;
+}
 
 /**
- * Open the app and force a clean, known starting state.
- * The page persists to sessionStorage, localStorage AND the browser's private
- * file system (OPFS), so we wipe all three, then reload into the built-in defaults.
+ * Open the app and force a clean, known starting state: wipe this test's org,
+ * load the page scoped to it, clear the browser's offline caches, reload.
  */
-export async function openApp(page: Page, file: keyof typeof FILES = 'v11') {
-  await page.goto(FILES[file]);
-
+export async function openApp(page: Page) {
+  const org = testOrg();
+  await page.request.post(`/api/test/reset?org=${org}`);
+  await page.goto(`/?org=${org}`);
   await page.evaluate(async () => {
     try { localStorage.clear(); sessionStorage.clear(); } catch { /* ignore */ }
     try {
@@ -23,24 +27,27 @@ export async function openApp(page: Page, file: keyof typeof FILES = 'v11') {
       }
     } catch { /* OPFS not available */ }
   });
-
   await page.reload();
-  await expect(page.locator('#leftList .item')).toHaveCount(1);   // back to defaults
+  await expect(page.locator('#leftList .item')).toHaveCount(1);   // built-in defaults
   await expect(page.locator('#rightList .item')).toHaveCount(1);
 }
 
-/** The page's own JSON block at the bottom, parsed. Your primary source of truth. */
+/** The page's own JSON block at the bottom, parsed. In-memory truth. */
 export async function state(page: Page): Promise<any> {
   return JSON.parse(await page.locator('#jsonView').innerText());
 }
 
-/** Force the app to flush its state to OPFS/localStorage right now (it is exposed on window). */
-export async function flush(page: Page) {
-  await page.evaluate(() => (window as any).OAStatePersistence?.saveNow?.());
-  await page.waitForTimeout(200);
+/** What the server (i.e. the database) currently holds for this test's org. */
+export function serverState(page: Page): Promise<any> {
+  return page.request.get(`/api/state?org=${testOrg()}`).then((r) => r.json());
 }
 
-/** Read the in-memory objects directly when you need something not in the footer. */
+/** Force an immediate PUT of the current state and wait for it to land. */
+export async function flush(page: Page) {
+  const ok = await page.evaluate(() => (window as any).serverSync?.flushNow?.());
+  expect(ok, 'serverSync.flushNow() PUT did not succeed').toBe(true);
+}
+
 export const readOA = (page: Page) => page.evaluate(() => (window as any).OA);
 export const readUI = (page: Page) => page.evaluate(() => (window as any).UI);
 
@@ -65,18 +72,13 @@ export async function linkFirstPerfPair(page: Page) {
 /**
  * US-45 — cross-cutting invariant, applied to every test automatically:
  * the page's hidden error bar must never surface, and the live JSON state
- * block must stay valid JSON for as long as we are on the app.
+ * block must stay valid JSON while we are on the app.
  */
 export const test = base.extend<{ coverage: void; noErrors: void }>({
-  // Collect V8 JS coverage on Chromium only and hand it to monocart-reporter.
-  // Firefox / WebKit have no page.coverage — they still run the tests, just
-  // don't contribute coverage numbers.
   coverage: [
     async ({ page, browserName }, use) => {
       const chromium = browserName === 'chromium';
-      if (chromium) {
-        await page.coverage.startJSCoverage({ resetOnNavigation: false });
-      }
+      if (chromium) await page.coverage.startJSCoverage({ resetOnNavigation: false });
       await use();
       if (chromium) {
         const entries = await page.coverage.stopJSCoverage();
@@ -93,7 +95,7 @@ export const test = base.extend<{ coverage: void; noErrors: void }>({
       const errShown = await page.locator('#err').isVisible().catch(() => false);
       expect(errShown, 'the #err bar became visible during this test').toBe(false);
 
-      if (page.url().includes('Objective%20Alignment')) {
+      if (await page.locator('#jsonView').count()) {
         const raw = await page.locator('#jsonView').innerText().catch(() => '');
         if (raw.trim()) {
           expect(() => JSON.parse(raw), '#jsonView is not valid JSON').not.toThrow();
