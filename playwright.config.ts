@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { STORAGE_STATE } from './tests/auth-constants';
 
 export default defineConfig({
   testDir: './tests',
@@ -42,8 +43,11 @@ export default defineConfig({
   },
 
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'firefox',  use: { ...devices['Desktop Firefox'] } },
-    { name: 'webkit',   use: { ...devices['Desktop Safari'] } },
+    // Signs in once and writes tests/.auth/state.json.
+    { name: 'setup', testMatch: /auth\.setup\.ts/ },
+
+    { name: 'chromium', dependencies: ['setup'], use: { ...devices['Desktop Chrome'], storageState: STORAGE_STATE } },
+    { name: 'firefox',  dependencies: ['setup'], use: { ...devices['Desktop Firefox'], storageState: STORAGE_STATE } },
+    { name: 'webkit',   dependencies: ['setup'], use: { ...devices['Desktop Safari'],  storageState: STORAGE_STATE } },
   ],
 });

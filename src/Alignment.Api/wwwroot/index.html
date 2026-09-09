@@ -1096,9 +1096,118 @@
         opacity: 0 !important; /* beats inline styles */
         pointer-events: none !important;
       }
+
+      /* Phase 2: sign-in gate */
+      #authGate {
+        position: fixed;
+        inset: 0;
+        z-index: 100000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(8, 10, 18, 0.78);
+        backdrop-filter: blur(3px);
+      }
+      #authGate[hidden] {
+        display: none;
+      }
+      #authForm {
+        width: 300px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        padding: 28px 30px;
+        border-radius: 12px;
+        background: #1b1f2a;
+        color: #e8eaf0;
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+        font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      }
+      #authForm h2 {
+        margin: 0;
+        font-size: 18px;
+      }
+      #authForm label {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 12px;
+        opacity: 0.8;
+      }
+      #authForm input {
+        padding: 8px 10px;
+        border: 1px solid #3a4152;
+        border-radius: 6px;
+        background: #11141d;
+        color: inherit;
+        font-size: 14px;
+      }
+      #authSubmit {
+        margin-top: 4px;
+        padding: 9px;
+        border: 0;
+        border-radius: 6px;
+        background: #3a7bd5;
+        color: #fff;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      #authSubmit:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+      #authErr {
+        margin: 0;
+        color: #ff6b6b;
+        font-size: 12px;
+      }
+      .topLink {
+        background: transparent;
+        border: 1px solid var(--border, #3a4152);
+        color: inherit;
+        font: inherit;
+        font-size: 12px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+        opacity: 0.8;
+      }
+      .topLink:hover {
+        opacity: 1;
+      }
+      .topLink[hidden] {
+        display: none;
+      }
     </style>
   </head>
   <body>
+    <!-- Phase 2: hidden until GET /api/auth/me says we are not signed in -->
+    <div id="authGate" hidden>
+      <form id="authForm" autocomplete="on">
+        <h2>Sign in</h2>
+        <label
+          >Username
+          <input
+            id="authUser"
+            name="username"
+            autocomplete="username"
+            autocapitalize="off"
+            spellcheck="false"
+            required
+        /></label>
+        <label
+          >Password
+          <input
+            id="authPass"
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            required
+        /></label>
+        <button type="submit" id="authSubmit">Sign in</button>
+        <p id="authErr" role="alert" hidden></p>
+      </form>
+    </div>
     <div class="top">
       <h2 style="margin: 0; display: flex; gap: 0.5rem; align-items: center">
         <span>Portfolio Alignment:</span>
@@ -1109,18 +1218,23 @@
           >My Organisation</span
         >
       </h2>
-      <button
-        id="themeToggle"
-        class="themeToggle"
-        title="Toggle theme"
-        aria-label="Toggle theme"
-      >
-        <span class="sun" aria-hidden="true">☀️</span
-        ><span class="moon" aria-hidden="true">🌙</span>
-      </button>
-      <span id="navigate_to_Performance_page" title="Go to Performance Page"
-        >➜</span
-      >
+      <div style="display: flex; align-items: center; gap: 0.75rem">
+        <button id="signOutBtn" class="topLink" type="button" title="Sign out" hidden>
+          Sign out
+        </button>
+        <button
+          id="themeToggle"
+          class="themeToggle"
+          title="Toggle theme"
+          aria-label="Toggle theme"
+        >
+          <span class="sun" aria-hidden="true">☀️</span
+          ><span class="moon" aria-hidden="true">🌙</span>
+        </button>
+        <span id="navigate_to_Performance_page" title="Go to Performance Page"
+          >➜</span
+        >
+      </div>
     </div>
 
     <div class="headerRow">
@@ -1505,6 +1619,130 @@
       // Kick off load ASAP on first render (open or navigation to this page)
       document.addEventListener("DOMContentLoaded", loadOnStartup);
 
+      // === Sign-in gate (Phase 2) ===
+      // A small username/password panel. Shown when GET /api/auth/me says we are
+      // not authenticated, or when a later request unexpectedly returns 401.
+      window.authGate = (function () {
+        let gate, form, userEl, passEl, errEl, submitEl, signOutEl;
+        let resolveLogin = null; // set while loadOnStartup is waiting for a sign-in
+
+        function els() {
+          gate = document.getElementById("authGate");
+          form = document.getElementById("authForm");
+          userEl = document.getElementById("authUser");
+          passEl = document.getElementById("authPass");
+          errEl = document.getElementById("authErr");
+          submitEl = document.getElementById("authSubmit");
+          signOutEl = document.getElementById("signOutBtn");
+        }
+
+        // Reveal the "Sign out" button (called once we know we're authenticated).
+        function markSignedIn() {
+          if (!signOutEl) els();
+          if (signOutEl) signOutEl.hidden = false;
+        }
+
+        function wire() {
+          if (!form) els();
+          if (signOutEl && !signOutEl.__wired) {
+            signOutEl.__wired = true;
+            signOutEl.addEventListener("click", async function () {
+              signOutEl.disabled = true;
+              try {
+                await fetch("/api/auth/logout", { method: "POST" });
+              } catch (_) {}
+              location.reload(); // startup re-runs -> sign-in panel
+            });
+          }
+          if (!form || form.__wired) return;
+          form.__wired = true;
+          form.addEventListener("submit", async function (e) {
+            e.preventDefault();
+            const u = (userEl.value || "").trim();
+            const p = passEl.value || "";
+            if (!u || !p) return;
+            submitEl.disabled = true;
+            errEl.hidden = true;
+            try {
+              const r = await fetch("/api/auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username: u, password: p }),
+              });
+              if (r.ok) {
+                passEl.value = "";
+                hide();
+                markSignedIn();
+                if (resolveLogin) {
+                  const done = resolveLogin;
+                  resolveLogin = null;
+                  done();
+                } else {
+                  // session-expired path: reload so startup re-runs cleanly
+                  location.reload();
+                }
+              } else {
+                show("Wrong username or password");
+              }
+            } catch (_) {
+              show("Could not reach the server — try again");
+            } finally {
+              submitEl.disabled = false;
+            }
+          });
+        }
+
+        function show(msg) {
+          if (!gate) els();
+          wire();
+          if (!gate) return;
+          gate.hidden = false;
+          if (errEl) {
+            errEl.hidden = !msg;
+            errEl.textContent = msg || "";
+          }
+          setTimeout(function () {
+            try {
+              userEl.focus();
+            } catch (_) {}
+          }, 30);
+        }
+
+        function hide() {
+          if (!gate) els();
+          if (gate) gate.hidden = true;
+        }
+
+        async function check() {
+          try {
+            const r = await fetch("/api/auth/me", {
+              headers: { Accept: "application/json" },
+            });
+            if (r.ok) markSignedIn();
+            return r.ok;
+          } catch (_) {
+            return false;
+          }
+        }
+
+        // Show the panel and resolve once the user signs in successfully.
+        function require() {
+          show();
+          return new Promise(function (res) {
+            resolveLogin = res;
+          });
+        }
+
+        // Called by serverSync when a request unexpectedly returns 401.
+        function onUnauthorized() {
+          if (resolveLogin) return; // already waiting on the panel
+          show("Your session expired — please sign in again");
+        }
+
+        document.addEventListener("DOMContentLoaded", wire);
+        return { check, require, show, hide, onUnauthorized };
+      })();
+
       // === Server persistence (Phase 1): the SQLite-backed API is the source of truth. ===
       // sessionStorage / OPFS stay as an offline cache. This wrapper is deliberately
       // thin so Phase 3 can drop in an Authorization header without touching the page.
@@ -1513,16 +1751,17 @@
           retry = 0,
           inFlight = false,
           pendingSince = 0,
-          // push() is a no-op until the initial pull() has run. This stops the
-          // page's startup wiring (which calls setOrgName -> saveNow) from writing
-          // the default state over whatever the DB already holds.
+          // push() is a no-op until the initial pull() has run (pull() lives past
+          // the sign-in gate in loadOnStartup). This stops the page's startup
+          // wiring — and the heartbeat while the login panel is up — from PUTting
+          // over the DB or hammering the server with 401s.
           armed = false;
 
-        // Safety net: if pull() never runs for some reason, arm anyway shortly
-        // after load so real edits still persist.
-        setTimeout(function () {
-          armed = true;
-        }, 4000);
+        // The sign-in panel is showing: do not touch the API.
+        function gateVisible() {
+          var g = document.getElementById("authGate");
+          return !!(g && !g.hidden);
+        }
 
         // Test isolation only: a ?org= in the URL scopes the API calls so that
         // parallel Playwright workers do not share one database row set.
@@ -1557,12 +1796,18 @@
           };
         }
 
+        // The session cookie expired mid-use — hand off to the sign-in panel.
+        function note401(r) {
+          if (r && r.status === 401 && window.authGate) window.authGate.onUnauthorized();
+        }
+
         function push() {
-          if (!armed) return; // startup noise before the first pull() — ignore
+          if (!armed || gateVisible()) return; // startup noise / not signed in
           clearTimeout(timer);
           if (!pendingSince) pendingSince = Date.now();
           timer = setTimeout(async function run() {
             timer = null;
+            if (gateVisible()) return; // signed out while we waited
             if (inFlight) {
               push();
               return;
@@ -1574,6 +1819,7 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload()),
               });
+              note401(r);
               if (!r.ok) throw new Error("HTTP " + r.status);
               retry = 0;
               pendingSince = 0;
@@ -1595,6 +1841,7 @@
 
         // Test helper: PUT the current state immediately and resolve when it lands.
         async function flushNow() {
+          if (gateVisible()) return false;
           clearTimeout(timer);
           timer = null;
           while (inFlight) await new Promise((r) => setTimeout(r, 20));
@@ -1605,6 +1852,7 @@
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(payload()),
             });
+            note401(r);
             pendingSince = 0;
             return r.ok;
           } catch (_) {
@@ -1617,6 +1865,7 @@
         async function pull() {
           try {
             const r = await fetch(apiUrl());
+            note401(r);
             if (!r.ok) return false;
             const s = await r.json();
             if (!s || s.exists === false) return false; // empty DB -> keep HTML defaults
@@ -1684,6 +1933,13 @@
 
       // ---- Load on first render / navigation-in ----
       async function loadOnStartup() {
+        try {
+          // Phase 2: no board until we are signed in. If not, show the panel and
+          // wait here until the user logs in successfully.
+          if (window.authGate && !(await window.authGate.check())) {
+            await window.authGate.require();
+          }
+        } catch (_) {}
         try {
           // Server first: the API is the source of truth in Phase 1.
           if (window.serverSync && (await window.serverSync.pull())) return;

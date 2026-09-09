@@ -13,6 +13,8 @@ function testOrg(): string {
 /**
  * Open the app and force a clean, known starting state: wipe this test's org,
  * load the page scoped to it, clear the browser's offline caches, reload.
+ * The signed-in session comes from tests/.auth/state.json (see auth.setup.ts),
+ * so the sign-in panel must never appear here.
  */
 export async function openApp(page: Page) {
   const org = testOrg();
@@ -28,6 +30,7 @@ export async function openApp(page: Page) {
     } catch { /* OPFS not available */ }
   });
   await page.reload();
+  await expect(page.locator('#authGate'), 'the shared session should keep us signed in').toBeHidden();
   await expect(page.locator('#leftList .item')).toHaveCount(1);   // built-in defaults
   await expect(page.locator('#rightList .item')).toHaveCount(1);
 }
