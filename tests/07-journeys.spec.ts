@@ -71,7 +71,8 @@ test.describe('Reorder, resize, navigation, map, export', () => {
     await page.locator('#ppCancel').click();
 
     await expect(page.locator('#portfolioPickerOverlay')).toBeHidden();
-    expect(page.url()).toContain('Objective%20Alignment');
+    expect(new URL(page.url()).pathname).toBe('/');       // still on the alignment page
+    await expect(page.locator('#jsonView')).toBeVisible();
   });
 
   test('US-42  open the relationship map', { tag: '@US-42' }, async ({ page }) => {

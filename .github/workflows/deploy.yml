@@ -1,0 +1,40 @@
+name: deploy
+
+# Fires only on a push to `prod` (i.e. a release). Re-runs the whole test suite
+# on the release commit, then pauses for rasamty's approval on the `production`
+# environment before it publishes. The Azure step is filled in during Phase 2.
+on:
+  push:
+    branches: [ prod ]
+
+jobs:
+  verify:
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production        # <-- rasamty approval required here
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish
+        run: dotnet publish src/Alignment.Api -c Release -o publish
+
+      # ---- Phase 2 fills this in ----
+      # - uses: azure/login@v2
+      #   with:
+      #     creds: ${{ secrets.AZURE_CREDENTIALS }}
+      # - uses: azure/webapps-deploy@v3
+      #   with:
+      #     app-name: ${{ secrets.AZURE_APP_NAME }}
+      #     package: publish
+
+      - name: Smoke test
+        run: |
+          echo "Phase 1: nothing is hosted yet. Phase 2 replaces this with:"
+          echo "  curl -sf https://align.repriori.com/health"
