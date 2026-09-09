@@ -96,7 +96,8 @@ builder.Services
         o.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
             ? CookieSecurePolicy.SameAsRequest           // http on localhost is fine
             : CookieSecurePolicy.Always;                  // HTTPS only in production
-        o.ExpireTimeSpan = TimeSpan.FromHours(12);
+        o.ExpireTimeSpan = TimeSpan.FromHours(
+            builder.Configuration.GetValue("Alignment:Auth:SessionHours", 12.0)); // appsettings; restart to apply
         o.SlidingExpiration = true;                       // active use keeps it alive
         // This is an API, not a website: answer with status codes, never a redirect
         // to a login page.
