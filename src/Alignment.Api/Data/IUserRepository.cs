@@ -23,6 +23,9 @@ public interface IUserRepository
     /// <summary>Stamp <c>last_login_utc</c> after a successful sign-in.</summary>
     Task SetLastLoginAsync(string id, CancellationToken ct = default);
 
+    /// <summary>Replace the password hash and clear <c>must_change_password</c>.</summary>
+    Task SetPasswordAsync(string id, string newPasswordHash, CancellationToken ct = default);
+
     /// <summary>Enable or disable an account. Returns false if the username is unknown.</summary>
     Task<bool> SetActiveAsync(string username, bool active, CancellationToken ct = default);
 }
