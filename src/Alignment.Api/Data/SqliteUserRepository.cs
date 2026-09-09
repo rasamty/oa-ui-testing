@@ -13,7 +13,8 @@ public sealed class SqliteUserRepository : IUserRepository
     private readonly string _connectionString;
     private readonly ILogger<SqliteUserRepository> _log;
     private readonly SemaphoreSlim _writeLock = new(1, 1);
-    private bool _schemaReady;
+    private readonly SemaphoreSlim _initLock = new(1, 1);
+    private volatile bool _schemaReady;
 
     public SqliteUserRepository(IConfiguration config, ILogger<SqliteUserRepository> log)
     {
@@ -29,12 +30,34 @@ public sealed class SqliteUserRepository : IUserRepository
     {
         var con = new SqliteConnection(_connectionString);
         await con.OpenAsync(ct);
-        await using var cmd = con.CreateCommand();
-        cmd.CommandText = _schemaReady
-            ? "PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;"
-            : "PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;\n" + SqliteSchema.Sql;
-        await cmd.ExecuteNonQueryAsync(ct);
-        _schemaReady = true;
+
+        await using (var pragma = con.CreateCommand())
+        {
+            pragma.CommandText = "PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;";
+            await pragma.ExecuteNonQueryAsync(ct);
+        }
+
+        // Run the schema exactly once per process. Without this guard, parallel
+        // first-opens race on "PRAGMA journal_mode = WAL" and stall on busy_timeout.
+        if (!_schemaReady)
+        {
+            await _initLock.WaitAsync(ct);
+            try
+            {
+                if (!_schemaReady)
+                {
+                    await using var schema = con.CreateCommand();
+                    schema.CommandText = SqliteSchema.Sql;
+                    await schema.ExecuteNonQueryAsync(ct);
+                    _schemaReady = true;
+                }
+            }
+            finally
+            {
+                _initLock.Release();
+            }
+        }
+
         return con;
     }
 
@@ -111,6 +134,24 @@ public sealed class SqliteUserRepository : IUserRepository
             await using var cmd = con.CreateCommand();
             cmd.CommandText = "UPDATE users SET last_login_utc = $t WHERE id = $id;";
             cmd.Parameters.AddWithValue("$t", DateTime.UtcNow.ToString("o"));
+            cmd.Parameters.AddWithValue("$id", id);
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
+        finally
+        {
+            _writeLock.Release();
+        }
+    }
+
+    public async Task SetPasswordAsync(string id, string newPasswordHash, CancellationToken ct = default)
+    {
+        await _writeLock.WaitAsync(ct);
+        try
+        {
+            await using var con = await OpenAsync(ct);
+            await using var cmd = con.CreateCommand();
+            cmd.CommandText = "UPDATE users SET password_hash = $ph, must_change_password = 0 WHERE id = $id;";
+            cmd.Parameters.AddWithValue("$ph", newPasswordHash);
             cmd.Parameters.AddWithValue("$id", id);
             await cmd.ExecuteNonQueryAsync(ct);
         }

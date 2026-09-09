@@ -5,6 +5,11 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 
+// Password hashing is synchronous and CPU-bound. A burst of logins (the parallel
+// Playwright suite; or several testers at once) can otherwise stall Kestrel while
+// the thread pool grows one-thread-per-second. Start with enough threads.
+ThreadPool.SetMinThreads(workerThreads: 32, completionPortThreads: 32);
+
 // ---- CLI mode: `dotnet run -- <command> …` ------------------------------------
 //   import <file.xlsx>                         load a sample workbook into "demo"
 //   create-user <username> <password> [org]    add a sign-in account
@@ -67,6 +72,12 @@ builder.Services.AddSingleton<IUserRepository, SqliteUserRepository>();
 // User object itself in current ASP.NET, but the generic type is required.
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 
+// PBKDF2 is deliberately slow (~tens of ms per call). Under the parallel
+// Playwright suite dozens of logins land at once and starve the dev server, so
+// in TestMode only we cut the work right down — the passwords are throwaway.
+if (builder.Configuration.GetValue<bool>("Alignment:TestMode"))
+    builder.Services.Configure<PasswordHasherOptions>(o => o.IterationCount = 1_000);
+
 builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(o =>
 {
     o.SerializerOptions.PropertyNameCaseInsensitive = true;
@@ -102,7 +113,9 @@ var app = builder.Build();
 var noSuchUserHash = app.Services.GetRequiredService<IPasswordHasher<User>>()
     .HashPassword(null!, "no-such-user");
 
+// Create the tables once, at startup, before any request can race on it.
 await app.Services.GetRequiredService<IStateRepository>().EnsureSchemaAsync();
+await app.Services.GetRequiredService<IUserRepository>().EnsureSchemaAsync();
 
 app.UseDefaultFiles();   // "/" -> wwwroot/index.html
 app.UseStaticFiles();    // serve wwwroot/* (the page and its assets stay public)
@@ -138,7 +151,9 @@ app.MapPost("/api/auth/login", async (LoginRequest req, HttpContext ctx,
     if (user is null || !user.IsActive || !passwordOk)
         return Results.Json(new { error = "wrong username or password" }, statusCode: StatusCodes.Status401Unauthorized);
 
-    await users.SetLastLoginAsync(user.Id, ct);
+    // Bookkeeping only — don't make the caller wait on a write, and don't let it
+    // fail the login. (Keeps login off the single user-DB write lock.)
+    _ = Task.Run(() => users.SetLastLoginAsync(user.Id, CancellationToken.None));
 
     var identity = new ClaimsIdentity(
     [
@@ -166,6 +181,29 @@ app.MapGet("/api/auth/me", (HttpContext ctx) =>
             organisationId = ctx.User.FindFirstValue("org"),
         })
         : Results.Json(new { authenticated = false }, statusCode: StatusCodes.Status401Unauthorized));
+
+// Change your own password. Must be signed in and prove the current password.
+app.MapPost("/api/auth/change-password", async (ChangePasswordRequest req, HttpContext ctx,
+    IUserRepository users, IPasswordHasher<User> hasher, CancellationToken ct) =>
+{
+    var id = ctx.User.FindFirstValue(ClaimTypes.NameIdentifier);
+    var user = id is null ? null : await users.FindByIdAsync(id, ct);
+    if (user is null)
+        return Results.Json(new { error = "not signed in" }, statusCode: StatusCodes.Status401Unauthorized);
+
+    var current = req.currentPassword ?? "";
+    var next = req.newPassword ?? "";
+
+    if (hasher.VerifyHashedPassword(user, user.PasswordHash, current) == PasswordVerificationResult.Failed)
+        return Results.Json(new { error = "current password is wrong" }, statusCode: StatusCodes.Status400BadRequest);
+    if (next.Length < 8)
+        return Results.Json(new { error = "new password must be at least 8 characters" }, statusCode: StatusCodes.Status400BadRequest);
+    if (next == current)
+        return Results.Json(new { error = "new password must be different" }, statusCode: StatusCodes.Status400BadRequest);
+
+    await users.SetPasswordAsync(user.Id, hasher.HashPassword(user, next), ct);
+    return Results.Ok(new { changed = true });
+}).RequireAuthorization();
 
 app.MapGet("/api/state", async (HttpContext ctx, IStateRepository db, CancellationToken ct) =>
 {
@@ -197,19 +235,27 @@ if (testMode)
         return Results.Ok(new { reset = true });
     });
 
-    // Idempotently ensure a sign-in account exists (the suite signs in once in setup).
+    // Force a sign-in account to exist with exactly this password and active.
+    // Idempotent to a known state so a test that changes the password does not
+    // leak into the next run (the test DB is not wiped between runs).
     app.MapPost("/api/test/user", async (LoginRequest req, IUserRepository users,
         IPasswordHasher<User> hasher, CancellationToken ct) =>
     {
         var name = req.username ?? "playwright";
-        if (await users.FindByUsernameAsync(name, ct) is not null)
+        var hash = hasher.HashPassword(null!, req.password ?? "");
+
+        var existing = await users.FindByUsernameAsync(name, ct);
+        if (existing is not null)
+        {
+            await users.SetPasswordAsync(existing.Id, hash, ct);
             return Results.Ok(new { created = false });
+        }
 
         await users.CreateAsync(new User
         {
             Id = Guid.NewGuid().ToString("n"),
             Username = name,
-            PasswordHash = hasher.HashPassword(null!, req.password ?? ""),
+            PasswordHash = hash,
             OrganisationId = "demo",
         }, ct);
         return Results.Ok(new { created = true });

@@ -1097,8 +1097,9 @@
         pointer-events: none !important;
       }
 
-      /* Phase 2: sign-in gate */
-      #authGate {
+      /* Phase 2: sign-in gate + change-password panel */
+      #authGate,
+      #pwPanel {
         position: fixed;
         inset: 0;
         z-index: 100000;
@@ -1108,10 +1109,12 @@
         background: rgba(8, 10, 18, 0.78);
         backdrop-filter: blur(3px);
       }
-      #authGate[hidden] {
+      #authGate[hidden],
+      #pwPanel[hidden] {
         display: none;
       }
-      #authForm {
+      #authForm,
+      #pwForm {
         width: 300px;
         display: flex;
         flex-direction: column;
@@ -1123,18 +1126,21 @@
         box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
         font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
       }
-      #authForm h2 {
+      #authForm h2,
+      #pwForm h2 {
         margin: 0;
         font-size: 18px;
       }
-      #authForm label {
+      #authForm label,
+      #pwForm label {
         display: flex;
         flex-direction: column;
         gap: 4px;
         font-size: 12px;
         opacity: 0.8;
       }
-      #authForm input {
+      #authForm input,
+      #pwForm input {
         padding: 8px 10px;
         border: 1px solid #3a4152;
         border-radius: 6px;
@@ -1142,7 +1148,8 @@
         color: inherit;
         font-size: 14px;
       }
-      #authSubmit {
+      #authSubmit,
+      #pwSubmit {
         margin-top: 4px;
         padding: 9px;
         border: 0;
@@ -1152,11 +1159,13 @@
         font-size: 14px;
         cursor: pointer;
       }
-      #authSubmit:disabled {
+      #authSubmit:disabled,
+      #pwSubmit:disabled {
         opacity: 0.6;
         cursor: default;
       }
-      #authErr {
+      #authErr,
+      #pwMsg {
         margin: 0;
         color: #ff6b6b;
         font-size: 12px;
@@ -1208,6 +1217,31 @@
         <p id="authErr" role="alert" hidden></p>
       </form>
     </div>
+
+    <!-- Phase 2: change your own password (opened from the top bar) -->
+    <div id="pwPanel" hidden>
+      <form id="pwForm" autocomplete="off">
+        <h2>Change password</h2>
+        <label
+          >Current password
+          <input id="pwCurrent" type="password" autocomplete="off" required
+        /></label>
+        <label
+          >New password
+          <input id="pwNew" type="password" autocomplete="off" minlength="8" required
+        /></label>
+        <label
+          >Confirm new password
+          <input id="pwConfirm" type="password" autocomplete="off" required
+        /></label>
+        <div style="display: flex; gap: 8px; margin-top: 4px">
+          <button type="submit" id="pwSubmit">Change</button>
+          <button type="button" id="pwCancel" class="topLink">Cancel</button>
+        </div>
+        <p id="pwMsg" role="alert" hidden></p>
+      </form>
+    </div>
+
     <div class="top">
       <h2 style="margin: 0; display: flex; gap: 0.5rem; align-items: center">
         <span>Portfolio Alignment:</span>
@@ -1219,6 +1253,9 @@
         >
       </h2>
       <div style="display: flex; align-items: center; gap: 0.75rem">
+        <button id="changePwBtn" class="topLink" type="button" title="Change password" hidden>
+          Change password
+        </button>
         <button id="signOutBtn" class="topLink" type="button" title="Sign out" hidden>
           Sign out
         </button>
@@ -1636,10 +1673,12 @@
           signOutEl = document.getElementById("signOutBtn");
         }
 
-        // Reveal the "Sign out" button (called once we know we're authenticated).
+        // Reveal the signed-in controls (called once we know we're authenticated).
         function markSignedIn() {
           if (!signOutEl) els();
           if (signOutEl) signOutEl.hidden = false;
+          var cp = document.getElementById("changePwBtn");
+          if (cp) cp.hidden = false;
         }
 
         function wire() {
@@ -1741,6 +1780,99 @@
 
         document.addEventListener("DOMContentLoaded", wire);
         return { check, require, show, hide, onUnauthorized };
+      })();
+
+      // === Change password (Phase 2) ===
+      // A small modal opened from the "Change password" button in the top bar.
+      window.changePassword = (function () {
+        let panel, form, curEl, newEl, confEl, msgEl, submitEl, cancelEl, openEl;
+
+        function els() {
+          panel = document.getElementById("pwPanel");
+          form = document.getElementById("pwForm");
+          curEl = document.getElementById("pwCurrent");
+          newEl = document.getElementById("pwNew");
+          confEl = document.getElementById("pwConfirm");
+          msgEl = document.getElementById("pwMsg");
+          submitEl = document.getElementById("pwSubmit");
+          cancelEl = document.getElementById("pwCancel");
+          openEl = document.getElementById("changePwBtn");
+        }
+
+        function msg(text, ok) {
+          if (!msgEl) els();
+          if (!msgEl) return;
+          msgEl.hidden = false;
+          msgEl.textContent = text;
+          msgEl.style.color = ok ? "#4caf50" : "#ff6b6b";
+        }
+
+        function open() {
+          els();
+          if (!panel) return;
+          form.reset();
+          msgEl.hidden = true;
+          panel.hidden = false;
+          try {
+            curEl.focus();
+          } catch (_) {}
+        }
+
+        function close() {
+          if (!panel) els();
+          if (panel) panel.hidden = true;
+        }
+
+        function wire() {
+          els();
+          if (openEl && !openEl.__wired) {
+            openEl.__wired = true;
+            openEl.addEventListener("click", open);
+          }
+          if (form && !form.__wired) {
+            form.__wired = true;
+            cancelEl.addEventListener("click", close);
+            form.addEventListener("submit", async function (e) {
+              e.preventDefault();
+              const cur = curEl.value || "";
+              const nw = newEl.value || "";
+              const cf = confEl.value || "";
+              if (nw !== cf) return msg("The two new passwords do not match");
+              if (nw.length < 8) return msg("New password must be at least 8 characters");
+              if (nw === cur) return msg("New password must be different from the current one");
+
+              submitEl.disabled = true;
+              msgEl.hidden = true;
+              try {
+                const r = await fetch("/api/auth/change-password", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ currentPassword: cur, newPassword: nw }),
+                });
+                const body = await r.json().catch(function () {
+                  return {};
+                });
+                if (r.ok) {
+                  form.reset();
+                  msg("Password changed.", true);
+                  setTimeout(close, 1200);
+                } else if (r.status === 401) {
+                  close();
+                  if (window.authGate) window.authGate.onUnauthorized();
+                } else {
+                  msg(body.error || "Could not change the password");
+                }
+              } catch (_) {
+                msg("Could not reach the server — try again");
+              } finally {
+                submitEl.disabled = false;
+              }
+            });
+          }
+        }
+
+        document.addEventListener("DOMContentLoaded", wire);
+        return { open, close, wire };
       })();
 
       // === Server persistence (Phase 1): the SQLite-backed API is the source of truth. ===
@@ -6505,6 +6637,11 @@
       });
     </script>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.19.3/xlsx.full.min.js"></script>
+    <!-- Excel export only. `defer` keeps it off the load path (and out of the
+         way of DOMContentLoaded), so a slow CDN never delays the page. -->
+    <script
+      defer
+      src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.19.3/xlsx.full.min.js"
+    ></script>
   </body>
 </html>
