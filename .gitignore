@@ -27,6 +27,8 @@ node_modules/
 *.docx
 *.doc
 /Docs/*.txt
+/Docs/*.json
+azure-creds.json
 
 # .NET
 bin/
