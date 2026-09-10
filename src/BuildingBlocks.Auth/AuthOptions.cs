@@ -40,6 +40,12 @@ public sealed class AuthOptions
     public string RefreshCookieName { get; set; } = "align_rt";
 
     /// <summary>
+    /// Force the <c>Secure</c> flag on the refresh cookie. Null (default) = follow the request
+    /// scheme. Set true on a deployment that terminates TLS at a proxy and talks to the app over http.
+    /// </summary>
+    public bool? RefreshCookieSecure { get; set; }
+
+    /// <summary>
     /// Set on a deployment reached through a proxy on a different hostname than the app sees
     /// (Cloudflare in front of *.azurewebsites.net). Pins the refresh cookie to this domain.
     /// </summary>
