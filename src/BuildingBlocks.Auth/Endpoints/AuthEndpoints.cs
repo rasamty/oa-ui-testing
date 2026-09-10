@@ -179,6 +179,9 @@ public static class AuthEndpoints
             };
         }).RequireAuthorization();
 
+        // ---- admin API (users.admin) ----
+        AdminEndpoints.MapAdmin(group);
+
         return app;
     }
 

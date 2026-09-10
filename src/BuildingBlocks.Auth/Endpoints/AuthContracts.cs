@@ -44,3 +44,32 @@ public sealed record MeResponse(
     IReadOnlyList<string> Permissions,
     bool TwoFactorEnabled,
     DateTimeOffset AccessEndsUtc);
+
+// ---- admin API (users.admin) ----
+
+public sealed record AdminUserView(
+    string Id,
+    string Username,
+    string OrganisationId,
+    string Role,
+    IReadOnlyList<string> Permissions,
+    bool IsActive,
+    bool MustChangePassword,
+    bool TwoFactorEnabled,
+    DateTimeOffset AccessStartsUtc,
+    DateTimeOffset AccessEndsUtc,
+    DateTimeOffset CreatedUtc,
+    DateTimeOffset? LastLoginUtc);
+
+public sealed record AdminCreateUserBody(
+    string Username,
+    string Password,
+    string? OrganisationId,
+    string? Role,
+    string? Permissions,
+    bool MustChangePassword = true,
+    int? TrialDays = null);
+
+public sealed record AdminResetPasswordBody(string NewPassword, bool MustChange = true);
+public sealed record AdminAccessWindowBody(DateTimeOffset? StartsUtc, DateTimeOffset? EndsUtc);
+public sealed record AdminExtendTrialBody(int Days);

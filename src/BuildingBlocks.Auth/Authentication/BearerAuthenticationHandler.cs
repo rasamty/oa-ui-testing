@@ -18,24 +18,27 @@ public sealed class BearerAuthenticationOptions : AuthenticationSchemeOptions;
 /// library already owns token validation.
 /// </summary>
 /// <remarks>
-/// Crypto and claims only. "Is this user still active / within their trial / not
-/// revoked" is enforced separately (an authorization requirement) so a token can
-/// be cut off mid-life without waiting for it to expire.
+/// Crypto and claims, plus the token denylist: an admin action (disable, reset
+/// password, revoke sessions) sets a per-user cut-off, and any token issued before
+/// it is rejected here on the very next request — no waiting for it to expire.
 /// </remarks>
 public sealed class BearerAuthenticationHandler : AuthenticationHandler<BearerAuthenticationOptions>
 {
     public const string SchemeName = "BuildingBlocksBearer";
 
     private readonly AccessTokenService _tokens;
+    private readonly ITokenDenylist _denylist;
 
     public BearerAuthenticationHandler(
         IOptionsMonitor<BearerAuthenticationOptions> options,
         ILoggerFactory logger,
         UrlEncoder encoder,
-        AccessTokenService tokens)
+        AccessTokenService tokens,
+        ITokenDenylist denylist)
         : base(options, logger, encoder)
     {
         _tokens = tokens;
+        _denylist = denylist;
     }
 
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
@@ -54,6 +57,15 @@ public sealed class BearerAuthenticationHandler : AuthenticationHandler<BearerAu
         var principal = await _tokens.ValidateAsync(token);
         if (principal is null)
             return AuthenticateResult.Fail("The access token is missing, expired or invalid.");
+
+        var sub = principal.FindFirst("sub")?.Value;
+        var iat = principal.FindFirst("iat")?.Value;
+        if (sub is not null && long.TryParse(iat, out var iatUnix))
+        {
+            var issuedAt = DateTimeOffset.FromUnixTimeSeconds(iatUnix);
+            if (await _denylist.IsDeniedAsync(sub, issuedAt))
+                return AuthenticateResult.Fail("This session has been revoked. Sign in again.");
+        }
 
         return AuthenticateResult.Success(new AuthenticationTicket(principal, Scheme.Name));
     }
