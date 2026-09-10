@@ -29,6 +29,8 @@ async function signIn(page: any, t: { testId: string }, u: string, pass: string)
 async function enrol(page: any): Promise<{ secret: string; recoveryCodes: string[] }> {
   await page.locator('#twoFaBtn').click();
   await expect(page.locator('#twoFaSecret')).toBeVisible(NET);
+  // the QR renders from the deferred cdnjs lib
+  await expect(page.locator('#twoFaQr svg')).toBeVisible(NET);
   const secret = ((await page.locator('#twoFaSecret').innerText()) || '').replace(/\s+/g, '');
   await page.locator('#twoFaCode').fill(totp(secret));
   await page.locator('#twoFaSubmit').click();
