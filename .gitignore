@@ -23,12 +23,14 @@ node_modules/
 /Draft Folder/
 
 # Docs are reference/operator material, local only — some hold plaintext
-# credentials. The tracked plan is generated from the scratchpad generators.
+# credentials. Everything under Docs/ is generated or hand-kept, not tracked.
 *.docx
 *.doc
-/Docs/*.txt
-/Docs/*.json
+/Docs/
 azure-creds.json
+
+# NuGet packages from `dotnet pack` (the packed library is kept in Docs/)
+*.nupkg
 
 # .NET
 bin/
