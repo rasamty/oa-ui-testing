@@ -1,5 +1,6 @@
 import { test as base, expect, type Page } from '@playwright/test';
 import { addCoverageReport } from 'monocart-reporter';
+import { TEST_USER, TEST_PASS } from './auth-constants';
 
 /**
  * Each test gets its own organisation id (stable per test, unique across the
@@ -11,15 +12,25 @@ function testOrg(): string {
 }
 
 /**
- * Open the app and force a clean, known starting state: wipe this test's org,
- * load the page scoped to it, clear the browser's offline caches, reload.
- * The signed-in session comes from tests/.auth/state.json (see auth.setup.ts),
- * so the sign-in panel must never appear here.
+ * Open the app and force a clean, known starting state: sign in through the panel
+ * for this test, wipe this test's org, clear the browser's offline caches, reload.
+ * The sign-in panel must never appear after this.
+ *
+ * Signing in through the UI resolves the page's own startup await and lands the
+ * (single-use, rotating) refresh cookie on THIS test's context. Each test has its
+ * own context, so the rotation never races another test.
  */
 export async function openApp(page: Page) {
   const org = testOrg();
   await page.request.post(`/api/test/reset?org=${org}`);
   await page.goto(`/?org=${org}`);
+
+  await expect(page.locator('#authGate')).toBeVisible();
+  await page.locator('#authUser').fill(TEST_USER);
+  await page.locator('#authPass').fill(TEST_PASS);
+  await page.locator('#authSubmit').click();
+  await expect(page.locator('#authGate'), 'sign-in should succeed').toBeHidden();
+
   await page.evaluate(async () => {
     try { localStorage.clear(); sessionStorage.clear(); } catch { /* ignore */ }
     try {
@@ -30,7 +41,7 @@ export async function openApp(page: Page) {
     } catch { /* OPFS not available */ }
   });
   await page.reload();
-  await expect(page.locator('#authGate'), 'the shared session should keep us signed in').toBeHidden();
+  await expect(page.locator('#authGate'), 'the test session should keep us signed in').toBeHidden();
   await expect(page.locator('#leftList .item')).toHaveCount(1);   // built-in defaults
   await expect(page.locator('#rightList .item')).toHaveCount(1);
 }
@@ -40,9 +51,13 @@ export async function state(page: Page): Promise<any> {
   return JSON.parse(await page.locator('#jsonView').innerText());
 }
 
-/** What the server (i.e. the database) currently holds for this test's org. */
+/**
+ * What the server (i.e. the database) currently holds for this test's org.
+ * Uses the TestMode-only /api/test/state so we don't have to thread the in-page
+ * access token through page.request.
+ */
 export function serverState(page: Page): Promise<any> {
-  return page.request.get(`/api/state?org=${testOrg()}`).then((r) => r.json());
+  return page.request.get(`/api/test/state?org=${testOrg()}`).then((r) => r.json());
 }
 
 /** Force an immediate PUT of the current state and wait for it to land. */

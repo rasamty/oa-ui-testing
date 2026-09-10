@@ -21,6 +21,14 @@ public sealed class AuthOptions
     /// <summary>How long a refresh token lives. It rotates on every use.</summary>
     public int RefreshTokenDays { get; set; } = 7;
 
+    /// <summary>
+    /// When a revoked refresh token is replayed, also revoke every other session for
+    /// that user (treat it as a stolen token). Off by default: a client that fires
+    /// two refreshes at once would otherwise log itself out. Turn on where the extra
+    /// theft protection is worth that risk.
+    /// </summary>
+    public bool RevokeAllOnRefreshReuse { get; set; } = false;
+
     /// <summary>New accounts get a trial this many days long unless the admin sets explicit dates.</summary>
     public int DefaultTrialDays { get; set; } = 14;
 

@@ -39,6 +39,9 @@ export default defineConfig({
       ASPNETCORE_URLS: 'http://localhost:4173',
       ASPNETCORE_ENVIRONMENT: 'Development',
       Alignment__TestMode: 'true',
+      // Bearer-token signing key. Real deployments read this from the environment
+      // / a secret store; for the test server a fixed throwaway value is fine.
+      AUTH_SIGNING_KEY: 'playwright-suite-signing-key-not-a-secret-000',
     },
   },
 
