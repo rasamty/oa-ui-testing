@@ -1227,6 +1227,22 @@
       .topLink[hidden] {
         display: none;
       }
+      #roBanner {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 90000;
+        text-align: center;
+        padding: 6px 12px;
+        font: 12px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        background: #6b4e00;
+        color: #ffe9b0;
+        border-bottom: 1px solid #8a6600;
+      }
+      #roBanner[hidden] {
+        display: none;
+      }
     </style>
   </head>
   <body>
@@ -1306,6 +1322,11 @@
         </div>
         <p id="twoFaMsg" role="alert" hidden></p>
       </form>
+    </div>
+
+    <!-- Shown when the signed-in account cannot write the board (perm: state.write missing). -->
+    <div id="roBanner" hidden>
+      You have read-only access — changes won’t be saved.
     </div>
 
     <!-- Change your own username (opened from "Signed in as …" in the top bar) -->
@@ -1780,6 +1801,7 @@
         let mustChangePassword = false;
         let twoFactorEnabled = false;
         let username = null;
+        let permissions = []; // perm claims from the token's user block
 
         function apply(body) {
           if (body && body.accessToken) {
@@ -1788,6 +1810,7 @@
             if (body.user) {
               if (typeof body.user.twoFactorEnabled === "boolean") twoFactorEnabled = body.user.twoFactorEnabled;
               if (body.user.username) username = body.user.username;
+              if (Array.isArray(body.user.permissions)) permissions = body.user.permissions;
             }
           }
           return body;
@@ -1933,6 +1956,7 @@
           clearMustChangePassword: function () { mustChangePassword = false; },
           twoFactorEnabled: function () { return twoFactorEnabled; },
           username: function () { return username; },
+          canWrite: function () { return permissions.indexOf("state.write") !== -1; },
           // Test hook: drop the in-memory access token so the next authFetch has
           // to go through the silent-refresh path.
           _expireForTest: function () { accessToken = null; },
@@ -2458,13 +2482,27 @@
           };
         }
 
-        // Still 401 after authClient tried to refresh — the session is truly gone.
-        function note401(r) {
-          if (r && r.status === 401 && window.authGate) window.authGate.onUnauthorized();
+        var readOnly = false;
+
+        // Show a small, permanent notice that edits will not be saved.
+        function goReadOnly() {
+          if (readOnly) return;
+          readOnly = true;
+          var b = document.getElementById("roBanner");
+          if (b) b.hidden = false;
         }
 
+        // 401 after a refresh attempt = session gone. 403 = signed in but not
+        // allowed to write — this account is read-only.
+        function noteAuthResult(r) {
+          if (!r) return;
+          if (r.status === 401 && window.authGate) window.authGate.onUnauthorized();
+          else if (r.status === 403) goReadOnly();
+        }
+        var note401 = noteAuthResult; // keep the old name for the call sites below
+
         function push() {
-          if (!armed || gateVisible()) return; // startup noise / not signed in
+          if (!armed || gateVisible() || readOnly) return; // startup noise / not signed in / read-only
           clearTimeout(timer);
           if (!pendingSince) pendingSince = Date.now();
           timer = setTimeout(async function run() {
@@ -2503,7 +2541,7 @@
 
         // Test helper: PUT the current state immediately and resolve when it lands.
         async function flushNow() {
-          if (gateVisible()) return false;
+          if (gateVisible() || readOnly) return false;
           clearTimeout(timer);
           timer = null;
           while (inFlight) await new Promise((r) => setTimeout(r, 20));
@@ -2525,6 +2563,8 @@
         }
 
         async function pull() {
+          // Signed in but without write permission -> read-only from the start.
+          if (window.authClient && !window.authClient.canWrite()) goReadOnly();
           try {
             const r = await window.authClient.authFetch(apiUrl());
             note401(r);
@@ -2555,7 +2595,10 @@
           }
         }
 
-        return { push: push, pull: pull, idle: idle, flushNow: flushNow, wipe: wipe };
+        return {
+          push: push, pull: pull, idle: idle, flushNow: flushNow, wipe: wipe,
+          isReadOnly: function () { return readOnly; },
+        };
       })();
 
       // Save when the page is being hidden (covers navigate-away, tab switch, close)
