@@ -3,6 +3,7 @@ using Alignment.Api.Data;
 using Alignment.Api.Model;
 using BuildingBlocks.Auth;
 using BuildingBlocks.Auth.Authentication;
+using BuildingBlocks.Auth.Authorization;
 using BuildingBlocks.Auth.Cli;
 using BuildingBlocks.Auth.Data;
 using BuildingBlocks.Auth.DependencyInjection;
@@ -72,7 +73,8 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(o =>
 builder.Services
     .AddAuthentication(BearerAuthenticationHandler.SchemeName)
     .AddBuildingBlocksBearer();
-builder.Services.AddAuthorization();
+// Named "perm:*" policies from the token's perm claims. Admin role bypasses them.
+builder.Services.AddBuildingBlocksAuthorization();
 
 var app = builder.Build();
 
@@ -146,17 +148,19 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 //   POST /api/auth/change-password    change own password  -> fresh tokens
 app.MapBuildingBlocksAuth("/api/auth");
 
+// Reading the board needs "state.read"; changing or clearing it needs "state.write".
+// A read-only member has only the first, so their PUT/DELETE come back 403.
 app.MapGet("/api/state", async (HttpContext ctx, IStateRepository db, CancellationToken ct) =>
 {
     var state = await db.LoadAsync(OrgOf(ctx, testMode), ct);
     return state is null ? Results.Json(new { exists = false }) : Results.Json(state);
-}).RequireAuthorization();
+}).RequireAuthorization(AuthPolicies.Policy(AuthPolicies.StateRead));
 
 app.MapPut("/api/state", async (AlignmentState state, HttpContext ctx, IStateRepository db, CancellationToken ct) =>
 {
     await db.SaveAsync(OrgOf(ctx, testMode), state, ct);
     return Results.Ok(new { saved = true });
-}).RequireAuthorization();
+}).RequireAuthorization(AuthPolicies.Policy(AuthPolicies.StateWrite));
 
 // The page's "Reset to defaults" button calls this so the reload that follows
 // starts from the built-in defaults, not the stored state.
@@ -164,7 +168,7 @@ app.MapDelete("/api/state", async (HttpContext ctx, IStateRepository db, Cancell
 {
     await db.ResetAsync(OrgOf(ctx, testMode), ct);
     return Results.Ok(new { reset = true });
-}).RequireAuthorization();
+}).RequireAuthorization(AuthPolicies.Policy(AuthPolicies.StateWrite));
 
 // Test-only helpers so the Playwright suite can set itself up. Never in production.
 if (testMode)
@@ -193,15 +197,20 @@ if (testMode)
         var pass = req.password ?? "";
         var org = string.IsNullOrWhiteSpace(req.org) ? "demo" : req.org!;
 
+        var role = string.IsNullOrWhiteSpace(req.role) ? "Member" : req.role!;
+        var perms = string.IsNullOrWhiteSpace(req.permissions) ? "state.read state.write" : req.permissions!;
+
         var existing = await users.FindByUsernameAsync(name, ct);
         if (existing is not null)
         {
-            // Reset to a fully known state — including 2FA off — so a test that
-            // enrolled 2FA on this deterministic username does not leak forward.
+            // Reset to a fully known state — including 2FA off and the requested
+            // role/permissions — so a re-used deterministic username starts clean.
             await users.UpdateAsync(existing with
             {
                 PasswordHash = passwords.Hash(pass),
                 OrganisationId = org,
+                Role = role,
+                Permissions = perms,
                 IsActive = true,
                 MustChangePassword = false,
                 TwoFactorEnabled = false,
@@ -216,6 +225,8 @@ if (testMode)
             Username = name,
             Password = pass,
             OrganisationId = org,
+            Role = role,
+            Permissions = perms,
             MustChangePassword = false,
             AccessEndsUtc = DateTimeOffset.UtcNow.AddYears(10),
         }, ct);
@@ -240,7 +251,7 @@ static void PointAuthDatabaseAtStateDatabase(IServiceCollection services, IConfi
 }
 
 /// <summary>Body of <c>POST /api/test/user</c> (TestMode only).</summary>
-public sealed record TestUserRequest(string? username, string? password, string? org);
+public sealed record TestUserRequest(string? username, string? password, string? org, string? role, string? permissions);
 
 // Exposed so Alignment.Api.Tests can spin the app up with WebApplicationFactory.
 public partial class Program;

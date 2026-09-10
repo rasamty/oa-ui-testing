@@ -32,6 +32,12 @@ public sealed class AuthOptions
     /// <summary>New accounts get a trial this many days long unless the admin sets explicit dates.</summary>
     public int DefaultTrialDays { get; set; } = 14;
 
+    /// <summary>
+    /// Space-separated <c>perm</c> claims a new account gets when the caller does not
+    /// specify any. The default lets a member read and write the product's state.
+    /// </summary>
+    public string DefaultPermissions { get; set; } = "state.read state.write";
+
     /// <summary>Require a TOTP code at login. Off by default; turn on per deployment.</summary>
     public bool RequireTwoFactor { get; set; } = false;
 

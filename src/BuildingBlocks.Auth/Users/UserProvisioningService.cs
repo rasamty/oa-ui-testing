@@ -10,7 +10,10 @@ public sealed record NewUserRequest
     public required string Password { get; init; }
     public required string OrganisationId { get; init; }
     public string Role { get; init; } = "Member";
-    public string Permissions { get; init; } = "";
+
+    /// <summary>Space-separated <c>perm</c> claims. Null / empty = <see cref="AuthOptions.DefaultPermissions"/>.</summary>
+    public string? Permissions { get; init; }
+
     public bool MustChangePassword { get; init; } = true;
 
     /// <summary>Explicit trial window. When null, the account gets <see cref="AuthOptions.DefaultTrialDays"/> from now.</summary>
@@ -66,7 +69,7 @@ public sealed class UserProvisioningService
             PasswordHash = _passwords.Hash(req.Password),
             OrganisationId = req.OrganisationId,
             Role = req.Role,
-            Permissions = req.Permissions,
+            Permissions = string.IsNullOrWhiteSpace(req.Permissions) ? _opts.DefaultPermissions : req.Permissions,
             IsActive = true,
             MustChangePassword = req.MustChangePassword,
             AccessStartsUtc = req.AccessStartsUtc ?? now,
