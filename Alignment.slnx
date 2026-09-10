@@ -2,5 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/Alignment.Api.Tests/Alignment.Api.Tests.csproj" />
     <Project Path="src/Alignment.Api/Alignment.Api.csproj" />
+    <Project Path="src/BuildingBlocks.Auth.Tests/BuildingBlocks.Auth.Tests.csproj" />
+    <Project Path="src/BuildingBlocks.Auth/BuildingBlocks.Auth.csproj" />
   </Folder>
 </Solution>
