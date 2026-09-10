@@ -1188,6 +1188,15 @@
         color: #ff6b6b;
         font-size: 12px;
       }
+      #twoFaQr svg {
+        display: block;
+        background: #fff;
+        padding: 6px;
+        border-radius: 6px;
+      }
+      #twoFaQr[hidden] {
+        display: none;
+      }
       #twoFaSecret {
         font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
         letter-spacing: 1px;
@@ -1330,12 +1339,23 @@
         min-height: 1em;
       }
     </style>
+
+    <!-- Sign-in / token client. Plain (not deferred) so window.authClient exists
+         before the page's inline script runs. -->
+    <script src="authClient.js"></script>
+
+    <!-- QR encoder for the 2FA setup panel. Deferred — the panel falls back to the
+         text key if it has not loaded yet. -->
+    <script
+      defer
+      src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"
+    ></script>
   </head>
   <body>
     <!-- Hidden until we know we are not signed in (Phase 3: bearer tokens). -->
-    <div id="authGate" hidden>
+    <div id="authGate" role="dialog" aria-modal="true" aria-labelledby="authTitle" hidden>
       <form id="authForm" autocomplete="on">
-        <h2>Sign in</h2>
+        <h2 id="authTitle">Sign in</h2>
         <label
           >Username
           <input
@@ -1371,15 +1391,16 @@
     </div>
 
     <!-- Two-factor: set up / turn off (opened from the top bar) -->
-    <div id="twoFaPanel" hidden>
+    <div id="twoFaPanel" role="dialog" aria-modal="true" aria-labelledby="twoFaTitle" hidden>
       <form id="twoFaForm" autocomplete="off">
         <h2 id="twoFaTitle">Two-factor authentication</h2>
 
         <div id="twoFaSetup" hidden>
           <p style="margin: 0 0 8px; opacity: 0.8; font-size: 12px">
-            Add this key to an authenticator app (Google Authenticator, 1Password, …),
-            then enter the 6-digit code it shows.
+            Scan this with an authenticator app (Google Authenticator, 1Password, …),
+            or type the key in by hand, then enter the 6-digit code it shows.
           </p>
+          <div id="twoFaQr" aria-hidden="true" style="margin: 0 auto 8px; width: fit-content"></div>
           <div id="twoFaSecret"></div>
           <a id="twoFaUri" href="#" style="font-size: 11px; opacity: 0.7">Open in an authenticator app</a>
           <label style="margin-top: 10px"
@@ -1411,19 +1432,21 @@
     </div>
 
     <!-- Admin: manage sign-in accounts (needs perm: users.admin). -->
-    <div id="adminPanel" hidden>
+    <div id="adminPanel" role="dialog" aria-modal="true" aria-labelledby="adminTitle" hidden>
       <div id="adminBox">
-        <h2>Users</h2>
+        <h2 id="adminTitle">Users</h2>
         <div id="adminNew">
-          <input id="adminNewUser" placeholder="username" autocapitalize="off" spellcheck="false" />
-          <input id="adminNewPass" placeholder="temporary password" type="text" />
+          <input id="adminNewUser" placeholder="username" aria-label="New user's username"
+            autocapitalize="off" spellcheck="false" />
+          <input id="adminNewPass" placeholder="temporary password" aria-label="New user's temporary password"
+            type="text" />
           <label style="font-size: 12px; opacity: 0.8"
             ><input id="adminNewReadOnly" type="checkbox" /> read-only</label
           >
           <button id="adminCreate" class="primary" type="button">Add user</button>
         </div>
         <div id="adminList"></div>
-        <p id="adminMsg"></p>
+        <p id="adminMsg" role="status" aria-live="polite"></p>
         <div style="text-align: right">
           <button id="adminClose" type="button">Close</button>
         </div>
@@ -1431,14 +1454,14 @@
     </div>
 
     <!-- Shown when the signed-in account cannot write the board (perm: state.write missing). -->
-    <div id="roBanner" hidden>
+    <div id="roBanner" role="status" hidden>
       You have read-only access — changes won’t be saved.
     </div>
 
     <!-- Change your own username (opened from "Signed in as …" in the top bar) -->
-    <div id="namePanel" hidden>
+    <div id="namePanel" role="dialog" aria-modal="true" aria-labelledby="nameTitle" hidden>
       <form id="nameForm" autocomplete="off">
-        <h2>Change username</h2>
+        <h2 id="nameTitle">Change username</h2>
         <label
           >New username
           <input id="nameNew" autocapitalize="off" spellcheck="false" autocomplete="off" required
@@ -1456,9 +1479,9 @@
     </div>
 
     <!-- Phase 2: change your own password (opened from the top bar) -->
-    <div id="pwPanel" hidden>
+    <div id="pwPanel" role="dialog" aria-modal="true" aria-labelledby="pwTitle" hidden>
       <form id="pwForm" autocomplete="off">
-        <h2>Change password</h2>
+        <h2 id="pwTitle">Change password</h2>
         <label
           >Current password
           <input id="pwCurrent" type="password" autocomplete="off" required
@@ -1898,180 +1921,9 @@
       // Kick off load ASAP on first render (open or navigation to this page)
       document.addEventListener("DOMContentLoaded", loadOnStartup);
 
-      // === Token client (Phase 3) ===
-      // Holds the short-lived access token in memory only. The refresh token lives
-      // in an HttpOnly cookie scoped to /api/auth that JavaScript cannot read; the
-      // browser sends it automatically on /api/auth/refresh. authFetch() attaches
-      // the access token and, on a 401, silently refreshes once and retries.
-      window.authClient = (function () {
-        let accessToken = null;
-        let mustChangePassword = false;
-        let twoFactorEnabled = false;
-        let username = null;
-        let role = null;
-        let permissions = []; // perm claims from the token's user block
-
-        function apply(body) {
-          if (body && body.accessToken) {
-            accessToken = body.accessToken;
-            mustChangePassword = !!body.mustChangePassword;
-            if (body.user) {
-              if (typeof body.user.twoFactorEnabled === "boolean") twoFactorEnabled = body.user.twoFactorEnabled;
-              if (body.user.username) username = body.user.username;
-              if (body.user.role) role = body.user.role;
-              if (Array.isArray(body.user.permissions)) permissions = body.user.permissions;
-            }
-          }
-          return body;
-        }
-
-        async function login(username, password) {
-          try {
-            const r = await fetch("/api/auth/login", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ username, password }),
-            });
-            const body = await r.json().catch(function () { return {}; });
-            if (r.ok && body.accessToken) {
-              apply(body);
-              return { ok: true, mustChangePassword: !!body.mustChangePassword };
-            }
-            if (r.ok && body.ticket) {
-              return { ok: false, twoFactor: true, ticket: body.ticket };
-            }
-            if (r.status === 401) {
-              return { ok: false, error: "Wrong username or password" };
-            }
-            if (r.status === 429) {
-              return { ok: false, error: "Too many attempts — wait a few minutes and try again." };
-            }
-            return { ok: false, error: (body && body.detail) || "Could not sign in" };
-          } catch (_) {
-            return { ok: false, error: "Could not reach the server — try again" };
-          }
-        }
-
-        // Second step of a 2FA sign-in: exchange the ticket + code for tokens.
-        async function completeTwoFactor(ticket, code) {
-          try {
-            const r = await fetch("/api/auth/login/2fa", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ ticket, code }),
-            });
-            const body = await r.json().catch(function () { return {}; });
-            if (r.ok && body.accessToken) {
-              apply(body);
-              return { ok: true, mustChangePassword: !!body.mustChangePassword };
-            }
-            return { ok: false, error: "That code is not right — try again." };
-          } catch (_) {
-            return { ok: false, error: "Could not reach the server — try again" };
-          }
-        }
-
-        // --- 2FA management (all need a valid access token) ---
-        async function setupTwoFactor() {
-          const r = await authFetch("/api/auth/2fa/setup", { method: "POST" });
-          return r.ok ? r.json() : null;
-        }
-        async function confirmTwoFactor(code) {
-          const r = await authFetch("/api/auth/2fa/confirm", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ code }),
-          });
-          const body = await r.json().catch(function () { return {}; });
-          if (r.ok) { twoFactorEnabled = true; return { ok: true, recoveryCodes: body.recoveryCodes || [] }; }
-          return { ok: false, error: (body && body.detail) || "Could not turn on two-factor" };
-        }
-        async function disableTwoFactor(currentPassword) {
-          const r = await authFetch("/api/auth/2fa/disable", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ currentPassword }),
-          });
-          if (r.ok) { twoFactorEnabled = false; return { ok: true }; }
-          const body = await r.json().catch(function () { return {}; });
-          return { ok: false, error: (body && body.detail) || "Could not turn off two-factor" };
-        }
-
-        async function changeUsername(newUsername, currentPassword) {
-          const r = await authFetch("/api/auth/change-username", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ newUsername, currentPassword }),
-          });
-          const body = await r.json().catch(function () { return {}; });
-          if (r.ok) { apply(body); return { ok: true }; }
-          return { ok: false, error: (body && body.detail) || "Could not change username" };
-        }
-
-        // A refresh token is single-use and rotates, so two overlapping refreshes
-        // would make the second one look like a replayed (stolen) token and burn
-        // the whole session. Collapse concurrent callers onto one in-flight call.
-        let refreshing = null;
-        function refresh() {
-          if (refreshing) return refreshing;
-          refreshing = (async function () {
-            try {
-              const r = await fetch("/api/auth/refresh", { method: "POST" });
-              if (!r.ok) { accessToken = null; return false; }
-              apply(await r.json().catch(function () { return {}; }));
-              return !!accessToken;
-            } catch (_) {
-              return false;
-            } finally {
-              refreshing = null;
-            }
-          })();
-          return refreshing;
-        }
-
-        async function authFetch(url, opts) {
-          opts = opts || {};
-          function withAuth() {
-            const h = Object.assign({}, opts.headers || {});
-            if (accessToken) h["Authorization"] = "Bearer " + accessToken;
-            return Object.assign({}, opts, { headers: h });
-          }
-          let r = await fetch(url, withAuth());
-          if (r.status === 401 && (await refresh())) {
-            r = await fetch(url, withAuth());
-          }
-          return r;
-        }
-
-        async function logout() {
-          try { await fetch("/api/auth/logout", { method: "POST" }); } catch (_) {}
-          accessToken = null;
-          mustChangePassword = false;
-        }
-
-        return {
-          login,
-          completeTwoFactor,
-          refresh,
-          authFetch,
-          logout,
-          apply,
-          setupTwoFactor,
-          confirmTwoFactor,
-          disableTwoFactor,
-          changeUsername,
-          isSignedIn: function () { return !!accessToken; },
-          mustChangePassword: function () { return mustChangePassword; },
-          clearMustChangePassword: function () { mustChangePassword = false; },
-          twoFactorEnabled: function () { return twoFactorEnabled; },
-          username: function () { return username; },
-          canWrite: function () { return permissions.indexOf("state.write") !== -1; },
-          canAdmin: function () { return role === "Admin" || permissions.indexOf("users.admin") !== -1; },
-          // Test hook: drop the in-memory access token so the next authFetch has
-          // to go through the silent-refresh path.
-          _expireForTest: function () { accessToken = null; },
-        };
-      })();
+      // === Token client ===
+      // window.authClient lives in authClient.js (loaded in <head> before this
+      // script). It holds the access token in memory and does the silent refresh.
 
       // === Sign-in gate ===
       // A small username/password panel. Shown when we are not signed in, or when a
@@ -2462,6 +2314,26 @@
           [setupBox, codesBox, disableBox].forEach(function (b) { if (b) b.hidden = b !== box; });
         }
 
+        // Draw the otpauth:// URI as a QR using the deferred qrcode-generator lib.
+        // If it has not loaded (slow CDN, offline), the text key is still shown.
+        function renderQr(uri) {
+          var box = document.getElementById("twoFaQr");
+          if (!box) return;
+          box.innerHTML = "";
+          if (typeof window.qrcode !== "function") { box.hidden = true; return; }
+          try {
+            var qr = window.qrcode(0, "M");
+            qr.addData(uri);
+            qr.make();
+            box.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+            var svg = box.querySelector("svg");
+            if (svg) { svg.setAttribute("width", "168"); svg.setAttribute("height", "168"); }
+            box.hidden = false;
+          } catch (_) {
+            box.hidden = true;
+          }
+        }
+
         function close() {
           if (!panel) els();
           if (panel) panel.hidden = true;
@@ -2486,6 +2358,7 @@
             else {
               secretEl.textContent = setup.secret;
               uriEl.href = setup.otpAuthUri;
+              renderQr(setup.otpAuthUri);
               showOnly(setupBox);
               submitEl.textContent = "Confirm";
             }
@@ -2703,6 +2576,17 @@
         document.addEventListener("DOMContentLoaded", wire);
         return { wire, refresh };
       })();
+
+      // Escape closes any dismissible account dialog (never the sign-in gate, and
+      // never a forced password change — those manage their own close()).
+      document.addEventListener("keydown", function (e) {
+        if (e.key !== "Escape") return;
+        if (window.changePassword) window.changePassword.close();
+        if (window.changeUsername) window.changeUsername.close();
+        if (window.twoFactor) window.twoFactor.close();
+        var ap = document.getElementById("adminPanel");
+        if (ap && !ap.hidden) ap.hidden = true;
+      });
 
       // === Server persistence: the SQLite-backed API is the source of truth. ===
       // sessionStorage / OPFS stay as an offline cache. Every call goes through
