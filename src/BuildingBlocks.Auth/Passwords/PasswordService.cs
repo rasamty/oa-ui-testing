@@ -22,6 +22,14 @@ public sealed class PasswordService
         _usernameRegex = new Regex(_opts.Username.Pattern, RegexOptions.Compiled | RegexOptions.CultureInvariant);
     }
 
+    /// <summary>
+    /// A hash to verify against when the username is unknown, so "no such user" costs the
+    /// same as "wrong password" and cannot be told apart by timing. It is a real PBKDF2
+    /// hash of a random value — nothing will ever match it.
+    /// </summary>
+    public static string DummyHash { get; } =
+        new PasswordHasher<AuthUser>().HashPassword(null!, Guid.NewGuid().ToString("n") + Guid.NewGuid().ToString("n"));
+
     public string Hash(string password) => _hasher.HashPassword(user: null!, password);
 
     /// <summary>True if the password matches. (Rehash-needed is treated as a match — upgrade lazily on the next change.)</summary>
