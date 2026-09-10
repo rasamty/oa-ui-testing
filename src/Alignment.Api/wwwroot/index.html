@@ -1097,9 +1097,11 @@
         pointer-events: none !important;
       }
 
-      /* Phase 2: sign-in gate + change-password panel */
+      /* Sign-in gate + change-password + two-factor panels */
       #authGate,
-      #pwPanel {
+      #pwPanel,
+      #namePanel,
+      #twoFaPanel {
         position: fixed;
         inset: 0;
         z-index: 100000;
@@ -1110,12 +1112,16 @@
         backdrop-filter: blur(3px);
       }
       #authGate[hidden],
-      #pwPanel[hidden] {
+      #pwPanel[hidden],
+      #namePanel[hidden],
+      #twoFaPanel[hidden] {
         display: none;
       }
       #authForm,
-      #pwForm {
-        width: 300px;
+      #pwForm,
+      #nameForm,
+      #twoFaForm {
+        width: 320px;
         display: flex;
         flex-direction: column;
         gap: 14px;
@@ -1127,12 +1133,16 @@
         font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
       }
       #authForm h2,
-      #pwForm h2 {
+      #pwForm h2,
+      #nameForm h2,
+      #twoFaForm h2 {
         margin: 0;
         font-size: 18px;
       }
       #authForm label,
-      #pwForm label {
+      #pwForm label,
+      #nameForm label,
+      #twoFaForm label {
         display: flex;
         flex-direction: column;
         gap: 4px;
@@ -1140,7 +1150,9 @@
         opacity: 0.8;
       }
       #authForm input,
-      #pwForm input {
+      #pwForm input,
+      #nameForm input,
+      #twoFaForm input {
         padding: 8px 10px;
         border: 1px solid #3a4152;
         border-radius: 6px;
@@ -1149,7 +1161,9 @@
         font-size: 14px;
       }
       #authSubmit,
-      #pwSubmit {
+      #pwSubmit,
+      #nameSubmit,
+      #twoFaForm button[type="submit"] {
         margin-top: 4px;
         padding: 9px;
         border: 0;
@@ -1160,15 +1174,50 @@
         cursor: pointer;
       }
       #authSubmit:disabled,
-      #pwSubmit:disabled {
+      #pwSubmit:disabled,
+      #nameSubmit:disabled,
+      #twoFaForm button:disabled {
         opacity: 0.6;
         cursor: default;
       }
       #authErr,
-      #pwMsg {
+      #pwMsg,
+      #nameMsg,
+      #twoFaMsg {
         margin: 0;
         color: #ff6b6b;
         font-size: 12px;
+      }
+      #twoFaQr svg {
+        display: block;
+        background: #fff;
+        padding: 6px;
+        border-radius: 6px;
+      }
+      #twoFaQr[hidden] {
+        display: none;
+      }
+      #twoFaSecret {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        letter-spacing: 1px;
+        background: #11141d;
+        border: 1px solid #3a4152;
+        border-radius: 6px;
+        padding: 8px 10px;
+        word-break: break-all;
+        user-select: all;
+      }
+      #twoFaRecovery {
+        margin: 0;
+        padding: 10px 12px;
+        list-style: none;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px 14px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        background: #11141d;
+        border: 1px solid #3a4152;
+        border-radius: 6px;
       }
       .topLink {
         background: transparent;
@@ -1187,13 +1236,126 @@
       .topLink[hidden] {
         display: none;
       }
+      #roBanner {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 90000;
+        text-align: center;
+        padding: 6px 12px;
+        font: 12px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        background: #6b4e00;
+        color: #ffe9b0;
+        border-bottom: 1px solid #8a6600;
+      }
+      #roBanner[hidden] {
+        display: none;
+      }
+      #adminPanel {
+        position: fixed;
+        inset: 0;
+        z-index: 100000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(8, 10, 18, 0.78);
+        backdrop-filter: blur(3px);
+      }
+      #adminPanel[hidden] {
+        display: none;
+      }
+      #adminBox {
+        width: min(760px, 94vw);
+        max-height: 86vh;
+        overflow: auto;
+        padding: 22px 24px;
+        border-radius: 12px;
+        background: #1b1f2a;
+        color: #e8eaf0;
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+        font: 13px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      }
+      #adminBox h2 {
+        margin: 0 0 12px;
+        font-size: 17px;
+      }
+      #adminBox table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 14px;
+      }
+      #adminBox th,
+      #adminBox td {
+        text-align: left;
+        padding: 6px 8px;
+        border-bottom: 1px solid #2c3242;
+        vertical-align: top;
+      }
+      #adminBox th {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        opacity: 0.6;
+      }
+      #adminBox .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      #adminBox button {
+        font: inherit;
+        font-size: 11px;
+        padding: 3px 7px;
+        border: 1px solid #3a4152;
+        border-radius: 5px;
+        background: #11141d;
+        color: inherit;
+        cursor: pointer;
+      }
+      #adminBox button.primary {
+        background: #3a7bd5;
+        border-color: #3a7bd5;
+        color: #fff;
+      }
+      #adminNew {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      #adminNew input {
+        padding: 5px 7px;
+        border: 1px solid #3a4152;
+        border-radius: 5px;
+        background: #11141d;
+        color: inherit;
+        font: inherit;
+      }
+      #adminMsg {
+        margin: 0;
+        font-size: 12px;
+        min-height: 1em;
+      }
     </style>
+
+    <!-- Sign-in / token client. Plain (not deferred) so window.authClient exists
+         before the page's inline script runs. -->
+    <script src="authClient.js"></script>
+
+    <!-- QR encoder for the 2FA setup panel. Deferred — the panel falls back to the
+         text key if it has not loaded yet. -->
+    <script
+      defer
+      src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"
+    ></script>
   </head>
   <body>
-    <!-- Phase 2: hidden until GET /api/auth/me says we are not signed in -->
-    <div id="authGate" hidden>
+    <!-- Hidden until we know we are not signed in (Phase 3: bearer tokens). -->
+    <div id="authGate" role="dialog" aria-modal="true" aria-labelledby="authTitle" hidden>
       <form id="authForm" autocomplete="on">
-        <h2>Sign in</h2>
+        <h2 id="authTitle">Sign in</h2>
         <label
           >Username
           <input
@@ -1213,22 +1375,120 @@
             autocomplete="current-password"
             required
         /></label>
+        <label id="authOtpRow" hidden
+          >Authentication code
+          <input
+            id="authOtp"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            autocapitalize="off"
+            spellcheck="false"
+            placeholder="6-digit code or recovery code"
+        /></label>
         <button type="submit" id="authSubmit">Sign in</button>
         <p id="authErr" role="alert" hidden></p>
       </form>
     </div>
 
+    <!-- Two-factor: set up / turn off (opened from the top bar) -->
+    <div id="twoFaPanel" role="dialog" aria-modal="true" aria-labelledby="twoFaTitle" hidden>
+      <form id="twoFaForm" autocomplete="off">
+        <h2 id="twoFaTitle">Two-factor authentication</h2>
+
+        <div id="twoFaSetup" hidden>
+          <p style="margin: 0 0 8px; opacity: 0.8; font-size: 12px">
+            Scan this with an authenticator app (Google Authenticator, 1Password, …),
+            or type the key in by hand, then enter the 6-digit code it shows.
+          </p>
+          <div id="twoFaQr" aria-hidden="true" style="margin: 0 auto 8px; width: fit-content"></div>
+          <div id="twoFaSecret"></div>
+          <a id="twoFaUri" href="#" style="font-size: 11px; opacity: 0.7">Open in an authenticator app</a>
+          <label style="margin-top: 10px"
+            >6-digit code
+            <input id="twoFaCode" inputmode="numeric" autocomplete="one-time-code" spellcheck="false" />
+          </label>
+        </div>
+
+        <div id="twoFaCodes" hidden>
+          <p style="margin: 0 0 8px; opacity: 0.85; font-size: 12px">
+            Save these recovery codes somewhere safe. Each one works once if you lose your device.
+          </p>
+          <ul id="twoFaRecovery"></ul>
+        </div>
+
+        <div id="twoFaDisable" hidden>
+          <label
+            >Password
+            <input id="twoFaPassword" type="password" autocomplete="off" />
+          </label>
+        </div>
+
+        <div style="display: flex; gap: 8px; margin-top: 4px">
+          <button type="submit" id="twoFaSubmit">Continue</button>
+          <button type="button" id="twoFaCancel" class="topLink">Cancel</button>
+        </div>
+        <p id="twoFaMsg" role="alert" hidden></p>
+      </form>
+    </div>
+
+    <!-- Admin: manage sign-in accounts (needs perm: users.admin). -->
+    <div id="adminPanel" role="dialog" aria-modal="true" aria-labelledby="adminTitle" hidden>
+      <div id="adminBox">
+        <h2 id="adminTitle">Users</h2>
+        <div id="adminNew">
+          <input id="adminNewUser" placeholder="username" aria-label="New user's username"
+            autocapitalize="off" spellcheck="false" />
+          <input id="adminNewPass" placeholder="temporary password" aria-label="New user's temporary password"
+            type="text" />
+          <label style="font-size: 12px; opacity: 0.8"
+            ><input id="adminNewReadOnly" type="checkbox" /> read-only</label
+          >
+          <button id="adminCreate" class="primary" type="button">Add user</button>
+        </div>
+        <div id="adminList"></div>
+        <p id="adminMsg" role="status" aria-live="polite"></p>
+        <div style="text-align: right">
+          <button id="adminClose" type="button">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Shown when the signed-in account cannot write the board (perm: state.write missing). -->
+    <div id="roBanner" role="status" hidden>
+      You have read-only access — changes won’t be saved.
+    </div>
+
+    <!-- Change your own username (opened from "Signed in as …" in the top bar) -->
+    <div id="namePanel" role="dialog" aria-modal="true" aria-labelledby="nameTitle" hidden>
+      <form id="nameForm" autocomplete="off">
+        <h2 id="nameTitle">Change username</h2>
+        <label
+          >New username
+          <input id="nameNew" autocapitalize="off" spellcheck="false" autocomplete="off" required
+        /></label>
+        <label
+          >Password
+          <input id="namePass" type="password" autocomplete="off" required
+        /></label>
+        <div style="display: flex; gap: 8px; margin-top: 4px">
+          <button type="submit" id="nameSubmit">Change</button>
+          <button type="button" id="nameCancel" class="topLink">Cancel</button>
+        </div>
+        <p id="nameMsg" role="alert" hidden></p>
+      </form>
+    </div>
+
     <!-- Phase 2: change your own password (opened from the top bar) -->
-    <div id="pwPanel" hidden>
+    <div id="pwPanel" role="dialog" aria-modal="true" aria-labelledby="pwTitle" hidden>
       <form id="pwForm" autocomplete="off">
-        <h2>Change password</h2>
+        <h2 id="pwTitle">Change password</h2>
         <label
           >Current password
           <input id="pwCurrent" type="password" autocomplete="off" required
         /></label>
         <label
           >New password
-          <input id="pwNew" type="password" autocomplete="off" minlength="8" required
+          <input id="pwNew" type="password" autocomplete="off" minlength="12" required
         /></label>
         <label
           >Confirm new password
@@ -1253,8 +1513,13 @@
         >
       </h2>
       <div style="display: flex; align-items: center; gap: 0.75rem">
+        <button id="whoami" class="topLink" type="button" title="Change username" hidden></button>
+        <button id="adminBtn" class="topLink" type="button" title="Manage users" hidden>Users</button>
         <button id="changePwBtn" class="topLink" type="button" title="Change password" hidden>
           Change password
+        </button>
+        <button id="twoFaBtn" class="topLink" type="button" title="Two-factor authentication" hidden>
+          Two-factor: off
         </button>
         <button id="signOutBtn" class="topLink" type="button" title="Sign out" hidden>
           Sign out
@@ -1656,12 +1921,17 @@
       // Kick off load ASAP on first render (open or navigation to this page)
       document.addEventListener("DOMContentLoaded", loadOnStartup);
 
-      // === Sign-in gate (Phase 2) ===
-      // A small username/password panel. Shown when GET /api/auth/me says we are
-      // not authenticated, or when a later request unexpectedly returns 401.
+      // === Token client ===
+      // window.authClient lives in authClient.js (loaded in <head> before this
+      // script). It holds the access token in memory and does the silent refresh.
+
+      // === Sign-in gate ===
+      // A small username/password panel. Shown when we are not signed in, or when a
+      // later request stays 401 even after a token refresh.
       window.authGate = (function () {
-        let gate, form, userEl, passEl, errEl, submitEl, signOutEl;
+        let gate, form, userEl, passEl, errEl, submitEl, signOutEl, otpRow, otpEl;
         let resolveLogin = null; // set while loadOnStartup is waiting for a sign-in
+        let pendingTicket = null; // set after a password is accepted but 2FA is still owed
 
         function els() {
           gate = document.getElementById("authGate");
@@ -1671,6 +1941,8 @@
           errEl = document.getElementById("authErr");
           submitEl = document.getElementById("authSubmit");
           signOutEl = document.getElementById("signOutBtn");
+          otpRow = document.getElementById("authOtpRow");
+          otpEl = document.getElementById("authOtp");
         }
 
         // Reveal the signed-in controls (called once we know we're authenticated).
@@ -1679,6 +1951,47 @@
           if (signOutEl) signOutEl.hidden = false;
           var cp = document.getElementById("changePwBtn");
           if (cp) cp.hidden = false;
+          var who = document.getElementById("whoami");
+          if (who) {
+            var name = window.authClient.username();
+            who.hidden = !name;
+            if (name) who.textContent = "Signed in as " + name;
+          }
+          var tf = document.getElementById("twoFaBtn");
+          if (tf) {
+            tf.hidden = false;
+            tf.textContent = window.authClient.twoFactorEnabled()
+              ? "Two-factor: on"
+              : "Two-factor: off";
+          }
+          var ab = document.getElementById("adminBtn");
+          if (ab) ab.hidden = !window.authClient.canAdmin();
+        }
+
+        function askForCode() {
+          if (!otpRow) els();
+          if (otpRow) otpRow.hidden = false;
+          if (userEl) userEl.closest("label").hidden = true;
+          if (passEl) passEl.closest("label").hidden = true;
+          if (submitEl) submitEl.textContent = "Verify";
+          setTimeout(function () { try { otpEl.focus(); } catch (_) {} }, 30);
+        }
+
+        function finishSignIn(res) {
+          if (passEl) passEl.value = "";
+          hide();
+          markSignedIn();
+          if (res.mustChangePassword && window.changePassword) {
+            window.changePassword.open({ forced: true });
+          }
+          if (resolveLogin) {
+            const done = resolveLogin;
+            resolveLogin = null;
+            done();
+          } else if (!res.mustChangePassword) {
+            // session-expired path: reload so startup re-runs cleanly
+            location.reload();
+          }
         }
 
         function wire() {
@@ -1687,9 +2000,7 @@
             signOutEl.__wired = true;
             signOutEl.addEventListener("click", async function () {
               signOutEl.disabled = true;
-              try {
-                await fetch("/api/auth/logout", { method: "POST" });
-              } catch (_) {}
+              await window.authClient.logout();
               location.reload(); // startup re-runs -> sign-in panel
             });
           }
@@ -1697,34 +2008,30 @@
           form.__wired = true;
           form.addEventListener("submit", async function (e) {
             e.preventDefault();
-            const u = (userEl.value || "").trim();
-            const p = passEl.value || "";
-            if (!u || !p) return;
             submitEl.disabled = true;
             errEl.hidden = true;
             try {
-              const r = await fetch("/api/auth/login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username: u, password: p }),
-              });
-              if (r.ok) {
-                passEl.value = "";
-                hide();
-                markSignedIn();
-                if (resolveLogin) {
-                  const done = resolveLogin;
-                  resolveLogin = null;
-                  done();
-                } else {
-                  // session-expired path: reload so startup re-runs cleanly
-                  location.reload();
-                }
-              } else {
-                show("Wrong username or password");
+              if (pendingTicket) {
+                const code = (otpEl.value || "").trim();
+                if (!code) return;
+                const res = await window.authClient.completeTwoFactor(pendingTicket, code);
+                if (res.ok) { pendingTicket = null; finishSignIn(res); }
+                else show(res.error || "That code is not right");
+                return;
               }
-            } catch (_) {
-              show("Could not reach the server — try again");
+
+              const u = (userEl.value || "").trim();
+              const p = passEl.value || "";
+              if (!u || !p) return;
+              const res = await window.authClient.login(u, p);
+              if (res.ok) {
+                finishSignIn(res);
+              } else if (res.twoFactor) {
+                pendingTicket = res.ticket;
+                askForCode();
+              } else {
+                show(res.error || "Wrong username or password");
+              }
             } finally {
               submitEl.disabled = false;
             }
@@ -1742,7 +2049,7 @@
           }
           setTimeout(function () {
             try {
-              userEl.focus();
+              (pendingTicket ? otpEl : userEl).focus();
             } catch (_) {}
           }, 30);
         }
@@ -1753,15 +2060,16 @@
         }
 
         async function check() {
-          try {
-            const r = await fetch("/api/auth/me", {
-              headers: { Accept: "application/json" },
-            });
-            if (r.ok) markSignedIn();
-            return r.ok;
-          } catch (_) {
-            return false;
+          // A refresh both resumes a prior session (via the HttpOnly cookie) and
+          // tells us whether we are signed in.
+          const ok = await window.authClient.refresh();
+          if (ok) {
+            markSignedIn();
+            if (window.authClient.mustChangePassword() && window.changePassword) {
+              window.changePassword.open({ forced: true });
+            }
           }
+          return ok;
         }
 
         // Show the panel and resolve once the user signs in successfully.
@@ -1779,7 +2087,7 @@
         }
 
         document.addEventListener("DOMContentLoaded", wire);
-        return { check, require, show, hide, onUnauthorized };
+        return { check, require, show, hide, onUnauthorized, markSignedIn };
       })();
 
       // === Change password (Phase 2) ===
@@ -1807,11 +2115,17 @@
           msgEl.style.color = ok ? "#4caf50" : "#ff6b6b";
         }
 
-        function open() {
+        let forced = false;
+
+        function open(opts) {
           els();
           if (!panel) return;
+          forced = !!(opts && opts.forced);
           form.reset();
           msgEl.hidden = true;
+          // In forced mode there is nothing to go back to — hide Cancel and say why.
+          if (cancelEl) cancelEl.hidden = forced;
+          if (forced) msg("Set a new password to continue.");
           panel.hidden = false;
           try {
             curEl.focus();
@@ -1820,6 +2134,7 @@
 
         function close() {
           if (!panel) els();
+          if (forced) return; // cannot dismiss until the password is changed
           if (panel) panel.hidden = true;
         }
 
@@ -1838,13 +2153,13 @@
               const nw = newEl.value || "";
               const cf = confEl.value || "";
               if (nw !== cf) return msg("The two new passwords do not match");
-              if (nw.length < 8) return msg("New password must be at least 8 characters");
+              if (nw.length < 12) return msg("New password must be at least 12 characters");
               if (nw === cur) return msg("New password must be different from the current one");
 
               submitEl.disabled = true;
               msgEl.hidden = true;
               try {
-                const r = await fetch("/api/auth/change-password", {
+                const r = await window.authClient.authFetch("/api/auth/change-password", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ currentPassword: cur, newPassword: nw }),
@@ -1853,14 +2168,25 @@
                   return {};
                 });
                 if (r.ok) {
+                  // The response carries a fresh token pair (every other session
+                  // was dropped) — adopt it so we stay signed in here.
+                  window.authClient.apply(body);
+                  window.authClient.clearMustChangePassword();
                   form.reset();
+                  const wasForced = forced;
+                  forced = false;
                   msg("Password changed.", true);
-                  setTimeout(close, 1200);
+                  if (wasForced) {
+                    setTimeout(function () { location.reload(); }, 900);
+                  } else {
+                    setTimeout(close, 1200);
+                  }
                 } else if (r.status === 401) {
+                  forced = false;
                   close();
                   if (window.authGate) window.authGate.onUnauthorized();
                 } else {
-                  msg(body.error || "Could not change the password");
+                  msg((body && body.detail) || "Could not change the password");
                 }
               } catch (_) {
                 msg("Could not reach the server — try again");
@@ -1875,9 +2201,397 @@
         return { open, close, wire };
       })();
 
-      // === Server persistence (Phase 1): the SQLite-backed API is the source of truth. ===
-      // sessionStorage / OPFS stay as an offline cache. This wrapper is deliberately
-      // thin so Phase 3 can drop in an Authorization header without touching the page.
+      // === Change username (Phase 3.6) ===
+      // Opened from "Signed in as …" in the top bar. The account id never changes,
+      // so this only re-issues tokens with the new display name.
+      window.changeUsername = (function () {
+        let panel, form, newEl, passEl, msgEl, submitEl, cancelEl, openEl;
+
+        function els() {
+          panel = document.getElementById("namePanel");
+          form = document.getElementById("nameForm");
+          newEl = document.getElementById("nameNew");
+          passEl = document.getElementById("namePass");
+          msgEl = document.getElementById("nameMsg");
+          submitEl = document.getElementById("nameSubmit");
+          cancelEl = document.getElementById("nameCancel");
+          openEl = document.getElementById("whoami");
+        }
+
+        function msg(text, ok) {
+          if (!msgEl) els();
+          if (!msgEl) return;
+          msgEl.hidden = !text;
+          msgEl.textContent = text || "";
+          msgEl.style.color = ok ? "#4caf50" : "#ff6b6b";
+        }
+
+        function open() {
+          els();
+          if (!panel) return;
+          form.reset();
+          msg("");
+          newEl.value = window.authClient.username() || "";
+          panel.hidden = false;
+          try { newEl.focus(); newEl.select(); } catch (_) {}
+        }
+
+        function close() {
+          if (!panel) els();
+          if (panel) panel.hidden = true;
+        }
+
+        function wire() {
+          els();
+          if (openEl && !openEl.__wired) {
+            openEl.__wired = true;
+            openEl.addEventListener("click", open);
+          }
+          if (form && !form.__wired) {
+            form.__wired = true;
+            cancelEl.addEventListener("click", close);
+            form.addEventListener("submit", async function (e) {
+              e.preventDefault();
+              const name = (newEl.value || "").trim();
+              const pass = passEl.value || "";
+              if (!name || !pass) return;
+              submitEl.disabled = true;
+              msg("");
+              try {
+                const res = await window.authClient.changeUsername(name, pass);
+                if (res.ok) {
+                  msg("Username changed.", true);
+                  if (window.authGate) window.authGate.markSignedIn();
+                  setTimeout(close, 900);
+                } else {
+                  msg(res.error);
+                }
+              } finally {
+                submitEl.disabled = false;
+              }
+            });
+          }
+        }
+
+        document.addEventListener("DOMContentLoaded", wire);
+        return { open, close, wire };
+      })();
+
+      // === Two-factor setup / disable (Phase 3.5) ===
+      // Opened from the "Two-factor: on/off" button in the top bar.
+      window.twoFactor = (function () {
+        let panel, form, title, setupBox, secretEl, uriEl, codeEl, codesBox, list,
+          disableBox, passEl, submitEl, cancelEl, msgEl, openEl;
+        let mode = "idle"; // "setup" | "codes" | "disable"
+
+        function els() {
+          panel = document.getElementById("twoFaPanel");
+          form = document.getElementById("twoFaForm");
+          title = document.getElementById("twoFaTitle");
+          setupBox = document.getElementById("twoFaSetup");
+          secretEl = document.getElementById("twoFaSecret");
+          uriEl = document.getElementById("twoFaUri");
+          codeEl = document.getElementById("twoFaCode");
+          codesBox = document.getElementById("twoFaCodes");
+          list = document.getElementById("twoFaRecovery");
+          disableBox = document.getElementById("twoFaDisable");
+          passEl = document.getElementById("twoFaPassword");
+          submitEl = document.getElementById("twoFaSubmit");
+          cancelEl = document.getElementById("twoFaCancel");
+          msgEl = document.getElementById("twoFaMsg");
+          openEl = document.getElementById("twoFaBtn");
+        }
+
+        function msg(text, ok) {
+          if (!msgEl) els();
+          if (!msgEl) return;
+          msgEl.hidden = !text;
+          msgEl.textContent = text || "";
+          msgEl.style.color = ok ? "#4caf50" : "#ff6b6b";
+        }
+
+        function showOnly(box) {
+          [setupBox, codesBox, disableBox].forEach(function (b) { if (b) b.hidden = b !== box; });
+        }
+
+        // Draw the otpauth:// URI as a QR using the deferred qrcode-generator lib.
+        // If it has not loaded (slow CDN, offline), the text key is still shown.
+        function renderQr(uri) {
+          var box = document.getElementById("twoFaQr");
+          if (!box) return;
+          box.innerHTML = "";
+          if (typeof window.qrcode !== "function") { box.hidden = true; return; }
+          try {
+            var qr = window.qrcode(0, "M");
+            qr.addData(uri);
+            qr.make();
+            box.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+            var svg = box.querySelector("svg");
+            if (svg) { svg.setAttribute("width", "168"); svg.setAttribute("height", "168"); }
+            box.hidden = false;
+          } catch (_) {
+            box.hidden = true;
+          }
+        }
+
+        function close() {
+          if (!panel) els();
+          if (panel) panel.hidden = true;
+          mode = "idle";
+        }
+
+        async function open() {
+          els();
+          if (!panel) return;
+          form.reset();
+          msg("");
+          if (window.authClient.twoFactorEnabled()) {
+            mode = "disable";
+            title.textContent = "Turn off two-factor";
+            showOnly(disableBox);
+            submitEl.textContent = "Turn off";
+          } else {
+            mode = "setup";
+            title.textContent = "Set up two-factor";
+            const setup = await window.authClient.setupTwoFactor();
+            if (!setup) { msg("Could not start setup — try again."); showOnly(null); }
+            else {
+              secretEl.textContent = setup.secret;
+              uriEl.href = setup.otpAuthUri;
+              renderQr(setup.otpAuthUri);
+              showOnly(setupBox);
+              submitEl.textContent = "Confirm";
+            }
+          }
+          panel.hidden = false;
+        }
+
+        function wire() {
+          els();
+          if (openEl && !openEl.__wired) {
+            openEl.__wired = true;
+            openEl.addEventListener("click", open);
+          }
+          if (form && !form.__wired) {
+            form.__wired = true;
+            cancelEl.addEventListener("click", close);
+            form.addEventListener("submit", async function (e) {
+              e.preventDefault();
+              submitEl.disabled = true;
+              msg("");
+              try {
+                if (mode === "setup") {
+                  const res = await window.authClient.confirmTwoFactor((codeEl.value || "").trim());
+                  if (!res.ok) return msg(res.error);
+                  mode = "codes";
+                  title.textContent = "Save your recovery codes";
+                  list.innerHTML = "";
+                  res.recoveryCodes.forEach(function (c) {
+                    const li = document.createElement("li");
+                    li.textContent = c;
+                    list.appendChild(li);
+                  });
+                  showOnly(codesBox);
+                  submitEl.textContent = "I've saved these";
+                } else if (mode === "codes") {
+                  close();
+                  if (window.authGate) window.authGate.markSignedIn(); // refresh the button label
+                } else if (mode === "disable") {
+                  const res = await window.authClient.disableTwoFactor(passEl.value || "");
+                  if (!res.ok) return msg(res.error);
+                  close();
+                  if (window.authGate) window.authGate.markSignedIn();
+                }
+              } finally {
+                submitEl.disabled = false;
+              }
+            });
+          }
+        }
+
+        document.addEventListener("DOMContentLoaded", wire);
+        return { open, close, wire };
+      })();
+
+      // === Admin: manage users (Phase 3.8) ===
+      // Opened from the "Users" top-bar button (visible to users.admin / Admin).
+      // Talks to /api/auth/admin/users/*.
+      window.adminUsers = (function () {
+        var panel, listEl, msgEl, closeEl, openEl, createEl, newUserEl, newPassEl, newRoEl;
+
+        function els() {
+          panel = document.getElementById("adminPanel");
+          listEl = document.getElementById("adminList");
+          msgEl = document.getElementById("adminMsg");
+          closeEl = document.getElementById("adminClose");
+          openEl = document.getElementById("adminBtn");
+          createEl = document.getElementById("adminCreate");
+          newUserEl = document.getElementById("adminNewUser");
+          newPassEl = document.getElementById("adminNewPass");
+          newRoEl = document.getElementById("adminNewReadOnly");
+        }
+
+        function msg(text, ok) {
+          if (!msgEl) els();
+          if (msgEl) {
+            msgEl.textContent = text || "";
+            msgEl.style.color = ok ? "#4caf50" : "#ff6b6b";
+          }
+        }
+
+        function api(path, opts) {
+          return window.authClient.authFetch("/api/auth/admin/users" + path, opts);
+        }
+
+        async function refresh() {
+          var r = await api("");
+          if (!r.ok) { msg("Could not load users."); return; }
+          var users = await r.json();
+          render(users);
+        }
+
+        function render(users) {
+          var rows = users
+            .map(function (u) {
+              var trial = new Date(u.accessEndsUtc).toISOString().slice(0, 10);
+              return (
+                "<tr data-id='" + u.id + "'>" +
+                "<td>" + esc(u.username) + "</td>" +
+                "<td>" + esc(u.role) + "</td>" +
+                "<td>" + (u.isActive ? "yes" : "<b>no</b>") + "</td>" +
+                "<td>" + (u.twoFactorEnabled ? "on" : "off") + "</td>" +
+                "<td>" + trial + "</td>" +
+                "<td class='actions'>" +
+                (u.isActive
+                  ? "<button data-act='disable'>Disable</button>"
+                  : "<button data-act='enable'>Enable</button>") +
+                "<button data-act='reset-pw'>Reset password</button>" +
+                "<button data-act='reset-2fa'>Reset 2FA</button>" +
+                "<button data-act='revoke'>Revoke sessions</button>" +
+                "<button data-act='extend'>+14d</button>" +
+                "</td></tr>"
+              );
+            })
+            .join("");
+          listEl.innerHTML =
+            "<table><thead><tr><th>User</th><th>Role</th><th>Active</th><th>2FA</th>" +
+            "<th>Access ends</th><th>Actions</th></tr></thead><tbody>" + rows + "</tbody></table>";
+        }
+
+        function esc(s) {
+          return String(s).replace(/[&<>"]/g, function (c) {
+            return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+          });
+        }
+
+        async function act(id, action) {
+          var opts = { method: "POST" };
+          if (action === "disable") return api("/" + id + "/disable", opts);
+          if (action === "enable") return api("/" + id + "/enable", opts);
+          if (action === "reset-2fa") return api("/" + id + "/reset-2fa", opts);
+          if (action === "revoke") return api("/" + id + "/revoke-sessions", opts);
+          if (action === "extend")
+            return api("/" + id + "/extend-trial", jsonBody({ days: 14 }));
+          if (action === "reset-pw") {
+            var pw = prompt("New temporary password for this user (min 12 chars):");
+            if (!pw) return null;
+            return api("/" + id + "/reset-password", jsonBody({ newPassword: pw, mustChange: true }));
+          }
+          return null;
+        }
+
+        function jsonBody(obj) {
+          return {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(obj),
+          };
+        }
+
+        function wire() {
+          els();
+          if (openEl && !openEl.__wired) {
+            openEl.__wired = true;
+            openEl.addEventListener("click", async function () {
+              panel.hidden = false;
+              msg("");
+              await refresh();
+            });
+          }
+          if (panel && !panel.__wired) {
+            panel.__wired = true;
+            closeEl.addEventListener("click", function () { panel.hidden = true; });
+
+            createEl.addEventListener("click", async function () {
+              var name = (newUserEl.value || "").trim();
+              var pw = newPassEl.value || "";
+              if (!name || !pw) return msg("Username and a temporary password are required.");
+              createEl.disabled = true;
+              try {
+                var r = await api(
+                  "",
+                  jsonBody({
+                    username: name,
+                    password: pw,
+                    permissions: newRoEl.checked ? "state.read" : "state.read state.write",
+                    mustChangePassword: true,
+                  })
+                );
+                if (r.ok) {
+                  newUserEl.value = "";
+                  newPassEl.value = "";
+                  msg("Added " + name + ".", true);
+                  await refresh();
+                } else {
+                  var b = await r.json().catch(function () { return {}; });
+                  msg(b.detail || "Could not add the user.");
+                }
+              } finally {
+                createEl.disabled = false;
+              }
+            });
+
+            listEl.addEventListener("click", async function (e) {
+              var btn = e.target.closest("button[data-act]");
+              if (!btn) return;
+              var tr = btn.closest("tr[data-id]");
+              if (!tr) return;
+              btn.disabled = true;
+              try {
+                var r = await act(tr.getAttribute("data-id"), btn.getAttribute("data-act"));
+                if (r && !r.ok) {
+                  var b = await r.json().catch(function () { return {}; });
+                  msg(b.detail || "That action failed.");
+                } else if (r) {
+                  msg("Done.", true);
+                }
+              } finally {
+                btn.disabled = false;
+                await refresh();
+              }
+            });
+          }
+        }
+
+        document.addEventListener("DOMContentLoaded", wire);
+        return { wire, refresh };
+      })();
+
+      // Escape closes any dismissible account dialog (never the sign-in gate, and
+      // never a forced password change — those manage their own close()).
+      document.addEventListener("keydown", function (e) {
+        if (e.key !== "Escape") return;
+        if (window.changePassword) window.changePassword.close();
+        if (window.changeUsername) window.changeUsername.close();
+        if (window.twoFactor) window.twoFactor.close();
+        var ap = document.getElementById("adminPanel");
+        if (ap && !ap.hidden) ap.hidden = true;
+      });
+
+      // === Server persistence: the SQLite-backed API is the source of truth. ===
+      // sessionStorage / OPFS stay as an offline cache. Every call goes through
+      // window.authClient.authFetch, which attaches the bearer token and refreshes
+      // it once on a 401.
       window.serverSync = (function () {
         let timer = null,
           retry = 0,
@@ -1928,13 +2642,27 @@
           };
         }
 
-        // The session cookie expired mid-use — hand off to the sign-in panel.
-        function note401(r) {
-          if (r && r.status === 401 && window.authGate) window.authGate.onUnauthorized();
+        var readOnly = false;
+
+        // Show a small, permanent notice that edits will not be saved.
+        function goReadOnly() {
+          if (readOnly) return;
+          readOnly = true;
+          var b = document.getElementById("roBanner");
+          if (b) b.hidden = false;
         }
 
+        // 401 after a refresh attempt = session gone. 403 = signed in but not
+        // allowed to write — this account is read-only.
+        function noteAuthResult(r) {
+          if (!r) return;
+          if (r.status === 401 && window.authGate) window.authGate.onUnauthorized();
+          else if (r.status === 403) goReadOnly();
+        }
+        var note401 = noteAuthResult; // keep the old name for the call sites below
+
         function push() {
-          if (!armed || gateVisible()) return; // startup noise / not signed in
+          if (!armed || gateVisible() || readOnly) return; // startup noise / not signed in / read-only
           clearTimeout(timer);
           if (!pendingSince) pendingSince = Date.now();
           timer = setTimeout(async function run() {
@@ -1946,7 +2674,7 @@
             }
             inFlight = true;
             try {
-              const r = await fetch(apiUrl(), {
+              const r = await window.authClient.authFetch(apiUrl(), {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload()),
@@ -1973,13 +2701,13 @@
 
         // Test helper: PUT the current state immediately and resolve when it lands.
         async function flushNow() {
-          if (gateVisible()) return false;
+          if (gateVisible() || readOnly) return false;
           clearTimeout(timer);
           timer = null;
           while (inFlight) await new Promise((r) => setTimeout(r, 20));
           inFlight = true;
           try {
-            const r = await fetch(apiUrl(), {
+            const r = await window.authClient.authFetch(apiUrl(), {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(payload()),
@@ -1995,8 +2723,10 @@
         }
 
         async function pull() {
+          // Signed in but without write permission -> read-only from the start.
+          if (window.authClient && !window.authClient.canWrite()) goReadOnly();
           try {
-            const r = await fetch(apiUrl());
+            const r = await window.authClient.authFetch(apiUrl());
             note401(r);
             if (!r.ok) return false;
             const s = await r.json();
@@ -2018,14 +2748,17 @@
           pendingSince = 0;
           while (inFlight) await new Promise((r) => setTimeout(r, 20));
           try {
-            const r = await fetch(apiUrl(), { method: "DELETE" });
+            const r = await window.authClient.authFetch(apiUrl(), { method: "DELETE" });
             return r.ok;
           } catch (_) {
             return false;
           }
         }
 
-        return { push: push, pull: pull, idle: idle, flushNow: flushNow, wipe: wipe };
+        return {
+          push: push, pull: pull, idle: idle, flushNow: flushNow, wipe: wipe,
+          isReadOnly: function () { return readOnly; },
+        };
       })();
 
       // Save when the page is being hidden (covers navigate-away, tab switch, close)

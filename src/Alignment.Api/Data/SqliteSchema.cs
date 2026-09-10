@@ -79,8 +79,9 @@ public static class SqliteSchema
           PRIMARY KEY (organisation_id, key)
         );
 
-        -- Phase 2: a person who can sign in. One organisation per user for now;
-        -- Phase 3 turns organisation_id into a real multi-tenant boundary.
+        -- Phase 2 sign-in table. Phase 3 moved auth into BuildingBlocks.Auth
+        -- (the auth_users table). This is kept only so AuthUserImport can carry
+        -- existing accounts over on the first Phase 3 start; nothing writes it now.
         CREATE TABLE IF NOT EXISTS users (
           id                   TEXT PRIMARY KEY,           -- generated GUID, never the username
           username             TEXT NOT NULL,              -- as typed / displayed

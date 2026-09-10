@@ -1,8 +1,14 @@
 using System.Security.Claims;
 using Alignment.Api.Data;
 using Alignment.Api.Model;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
+using BuildingBlocks.Auth;
+using BuildingBlocks.Auth.Authentication;
+using BuildingBlocks.Auth.Authorization;
+using BuildingBlocks.Auth.Cli;
+using BuildingBlocks.Auth.Data;
+using BuildingBlocks.Auth.DependencyInjection;
+using BuildingBlocks.Auth.Endpoints;
+using BuildingBlocks.Auth.Users;
 using Microsoft.AspNetCore.Identity;
 
 // Password hashing is synchronous and CPU-bound. A burst of logins (the parallel
@@ -11,15 +17,15 @@ using Microsoft.AspNetCore.Identity;
 ThreadPool.SetMinThreads(workerThreads: 32, completionPortThreads: 32);
 
 // ---- CLI mode: `dotnet run -- <command> …` ------------------------------------
-//   import <file.xlsx>                         load a sample workbook into "demo"
-//   create-user <username> <password> [org]    add a sign-in account
-if (args.Length > 0 && args[0] is "import" or "create-user")
+//   import <file.xlsx>          load a sample workbook into "demo"
+//   auth <subcommand> …         account admin (create-user, list-users, reset-password, …)
+if (args.Length > 0 && args[0] is "import" or "auth")
 {
-    var host = Host.CreateApplicationBuilder(args);
-    host.Services.AddSingleton<IStateRepository, SqliteStateRepository>();
-    host.Services.AddSingleton<IUserRepository, SqliteUserRepository>();
-    host.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
-    var cli = host.Build();
+    var cliHost = Host.CreateApplicationBuilder(args);
+    cliHost.Services.AddSingleton<IStateRepository, SqliteStateRepository>();
+    cliHost.Services.AddBuildingBlocksAuth(cliHost.Configuration);
+    PointAuthDatabaseAtStateDatabase(cliHost.Services, cliHost.Configuration);
+    var cli = cliHost.Build();
 
     if (args[0] is "import")
     {
@@ -29,53 +35,32 @@ if (args.Length > 0 && args[0] is "import" or "create-user")
         return await ExcelImporter.ImportAsync(repo0, args[1], org: "demo");
     }
 
-    // create-user <username> <password> [organisation]
-    if (args.Length < 3)
-    {
-        Console.Error.WriteLine("usage: dotnet run -- create-user <username> <password> [organisation]");
-        return 1;
-    }
-
-    var users = cli.Services.GetRequiredService<IUserRepository>();
-    await users.EnsureSchemaAsync();
-
-    var hasher = cli.Services.GetRequiredService<IPasswordHasher<User>>();
-    var username = args[1];
-    var org = args.Length >= 4 ? args[3] : "demo";
-
-    var newUser = new User
-    {
-        Id = Guid.NewGuid().ToString("n"),
-        Username = username,
-        // HashPassword ignores the first argument in the current implementation.
-        PasswordHash = hasher.HashPassword(null!, args[2]),
-        OrganisationId = org,
-    };
-
-    if (!await users.CreateAsync(newUser))
-    {
-        Console.Error.WriteLine($"a user named '{username}' already exists");
-        return 2;
-    }
-
-    Console.WriteLine($"created user '{username}' (id {newUser.Id}) in org '{org}'");
-    return 0;
+    // auth <subcommand> …
+    return await AuthCli.RunAsync(args[1..], cli.Services);
 }
 
 // ---- Web app -------------------------------------------------------------------
 var builder = WebApplication.CreateBuilder(args);
+var testMode = builder.Configuration.GetValue<bool>("Alignment:TestMode");
 
 builder.Services.AddSingleton<IStateRepository, SqliteStateRepository>();
-builder.Services.AddSingleton<IUserRepository, SqliteUserRepository>();
 
-// Phase 2 auth: hashes and verifies passwords. PasswordHasher never needs the
-// User object itself in current ASP.NET, but the generic type is required.
-builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
+// The reusable sign-in library. Phase 3 replaced the Phase 2 hand-rolled cookie
+// auth with this: JWT access tokens + rotating refresh tokens, all its own tables
+// (auth_users, auth_refresh_tokens, …) in the same SQLite file as the board data.
+//
+// The JWT signing key comes from AUTH_SIGNING_KEY (environment), never appsettings.
+// TestMode is allowed a fixed throwaway key so `dotnet run` / CI need no secret.
+var signingKeyOverride = testMode && Environment.GetEnvironmentVariable("AUTH_SIGNING_KEY") is null
+    ? "testmode-only-not-a-secret-signing-key-0123456789"
+    : null;
+builder.Services.AddBuildingBlocksAuth(builder.Configuration, signingKeyOverride);
+PointAuthDatabaseAtStateDatabase(builder.Services, builder.Configuration);
 
-// PBKDF2 is deliberately slow (~tens of ms per call). Under the parallel
-// Playwright suite dozens of logins land at once and starve the dev server, so
-// in TestMode only we cut the work right down — the passwords are throwaway.
-if (builder.Configuration.GetValue<bool>("Alignment:TestMode"))
+// PBKDF2 is deliberately slow (~tens of ms). Under the parallel Playwright suite
+// dozens of logins land at once and starve the dev server, so in TestMode only we
+// cut the work right down — the passwords are throwaway.
+if (testMode)
     builder.Services.Configure<PasswordHasherOptions>(o => o.IterationCount = 1_000);
 
 builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(o =>
@@ -83,70 +68,54 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(o =>
     o.SerializerOptions.PropertyNameCaseInsensitive = true;
 });
 
-// Phase 2: sign-in is a cookie. Scheme name "Align". The cookie holds the user's
-// id, name and org as claims; the server checks its signature on every request,
-// no database hit. Phase 3 replaces this with bearer tokens.
+// One scheme: the library's bearer handler validates `Authorization: Bearer <jwt>`
+// against its own token service. No cookie scheme, no JwtBearer package.
 builder.Services
-    .AddAuthentication("Align")
-    .AddCookie("Align", o =>
-    {
-        o.Cookie.Name = "align_auth";
-        o.Cookie.HttpOnly = true;                       // JavaScript cannot read it
-        o.Cookie.SameSite = SameSiteMode.Lax;
-        o.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
-            ? CookieSecurePolicy.SameAsRequest           // http on localhost is fine
-            : CookieSecurePolicy.Always;                  // HTTPS only in production
-        // When the app is reached through a proxy on a different hostname than the
-        // one it thinks it is serving (e.g. Cloudflare fronting align.repriori.com
-        // but forwarding to *.azurewebsites.net), pin the cookie to the public
-        // hostname so the browser sends it back.
-        var cookieDomain = builder.Configuration["Alignment:Auth:CookieDomain"];
-        if (!string.IsNullOrWhiteSpace(cookieDomain))
-            o.Cookie.Domain = cookieDomain;
-        o.ExpireTimeSpan = TimeSpan.FromHours(
-            builder.Configuration.GetValue("Alignment:Auth:SessionHours", 12.0)); // appsettings; restart to apply
-        o.SlidingExpiration = true;                       // active use keeps it alive
-        // This is an API, not a website: answer with status codes, never a redirect
-        // to a login page.
-        o.Events.OnRedirectToLogin = ctx => { ctx.Response.StatusCode = StatusCodes.Status401Unauthorized; return Task.CompletedTask; };
-        o.Events.OnRedirectToAccessDenied = ctx => { ctx.Response.StatusCode = StatusCodes.Status403Forbidden; return Task.CompletedTask; };
-    });
-builder.Services.AddAuthorization();
+    .AddAuthentication(BearerAuthenticationHandler.SchemeName)
+    .AddBuildingBlocksBearer();
+// Named "perm:*" policies from the token's perm claims. Admin role bypasses them.
+builder.Services.AddBuildingBlocksAuthorization();
 
 var app = builder.Build();
 
-// Pre-computed once: a login attempt for a username that does not exist still
-// runs the same password-hash work, so response time does not reveal which
-// usernames are real.
-var noSuchUserHash = app.Services.GetRequiredService<IPasswordHasher<User>>()
-    .HashPassword(null!, "no-such-user");
-
-// Create the tables once, at startup, before any request can race on it.
+// Create every table once, at startup, before a request can race on it.
 await app.Services.GetRequiredService<IStateRepository>().EnsureSchemaAsync();
-await app.Services.GetRequiredService<IUserRepository>().EnsureSchemaAsync();
+await app.Services.GetRequiredService<IUserStore>().EnsureSchemaAsync();
 
-// First-run bootstrap: when Alignment:Bootstrap:User/Password are set (an
-// app setting on the host) and that account does not exist yet, create it.
-// Lets a fresh deployment get its first sign-in account without SSH. Idempotent
-// — it never resets an existing user, so the settings can be left in place or
-// removed after the first start.
+// One-time carry-over: if the Phase 2 `users` table has accounts and the Phase 3
+// `auth_users` table is still empty, copy them across (same id, hash, org). Lets a
+// deployment that already had sign-ins keep them without anyone re-registering.
+await AuthUserImport.CarryOverAsync(
+    builder.Configuration["Alignment:Sqlite:DbPath"] ?? "Data/alignment.db",
+    app.Services.GetRequiredService<IUserStore>(),
+    app.Logger);
+
+// First-run bootstrap: when Alignment:Bootstrap:User/Password are set (an app
+// setting on the host) and that account does not exist, create it as an admin.
+// Idempotent — never resets an existing user.
 {
     var bootUser = app.Configuration["Alignment:Bootstrap:User"];
     var bootPass = app.Configuration["Alignment:Bootstrap:Password"];
     if (!string.IsNullOrWhiteSpace(bootUser) && !string.IsNullOrWhiteSpace(bootPass))
     {
-        var repo = app.Services.GetRequiredService<IUserRepository>();
-        if (await repo.FindByUsernameAsync(bootUser) is null)
+        var store = app.Services.GetRequiredService<IUserStore>();
+        if (await store.FindByUsernameAsync(bootUser) is null)
         {
-            var hasher = app.Services.GetRequiredService<IPasswordHasher<User>>();
-            await repo.CreateAsync(new User
+            var provisioning = app.Services.GetRequiredService<UserProvisioningService>();
+            var result = await provisioning.CreateAsync(new NewUserRequest
             {
-                Id = Guid.NewGuid().ToString("n"),
                 Username = bootUser,
-                PasswordHash = hasher.HashPassword(null!, bootPass),
+                Password = bootPass,
                 OrganisationId = "demo",
+                Role = "Admin",
+                Permissions = "state.read state.write users.admin",
+                MustChangePassword = false,
+                AccessEndsUtc = DateTimeOffset.UtcNow.AddYears(10),
             });
-            app.Logger.LogWarning("Bootstrap: created sign-in account '{User}'", bootUser);
+            if (result.Ok)
+                app.Logger.LogWarning("Bootstrap: created admin sign-in account '{User}'", bootUser);
+            else
+                app.Logger.LogError("Bootstrap: could not create '{User}': {Error}", bootUser, result.Error);
         }
     }
 }
@@ -154,14 +123,13 @@ await app.Services.GetRequiredService<IUserRepository>().EnsureSchemaAsync();
 app.UseDefaultFiles();   // "/" -> wwwroot/index.html
 app.UseStaticFiles();    // serve wwwroot/* (the page and its assets stay public)
 
-app.UseAuthentication();  // read the cookie, build ctx.User
+app.UseAuthentication();  // validate the bearer token, build ctx.User
 app.UseAuthorization();   // enforce .RequireAuthorization() below
 
 // The organisation whose board this request touches:
 //   - TestMode + ?org=  -> that value (parallel Playwright workers stay isolated)
 //   - signed in         -> the user's "org" claim
 //   - otherwise         -> "demo"
-var testMode = app.Configuration.GetValue<bool>("Alignment:TestMode");
 static string OrgOf(HttpContext ctx, bool testMode)
 {
     if (testMode && ctx.Request.Query.TryGetValue("org", out var q) && !string.IsNullOrWhiteSpace(q))
@@ -171,94 +139,36 @@ static string OrgOf(HttpContext ctx, bool testMode)
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
-// ---- auth ----
-app.MapPost("/api/auth/login", async (LoginRequest req, HttpContext ctx,
-    IUserRepository users, IPasswordHasher<User> hasher, CancellationToken ct) =>
-{
-    var user = await users.FindByUsernameAsync(req.username ?? "", ct);
+// All the sign-in endpoints, from the library, under /api/auth:
+//   POST /api/auth/login              username + password  -> tokens (or a 2FA ticket)
+//   POST /api/auth/login/2fa          ticket + OTP         -> tokens
+//   POST /api/auth/refresh            (refresh cookie)     -> fresh tokens
+//   POST /api/auth/logout             revoke this session
+//   GET  /api/auth/me                 the signed-in account
+//   POST /api/auth/change-password    change own password  -> fresh tokens
+app.MapBuildingBlocksAuth("/api/auth");
 
-    // Always verify a hash (the real one, or a dummy) so timing is the same
-    // whether or not the username exists.
-    var passwordOk = hasher.VerifyHashedPassword(user!, user?.PasswordHash ?? noSuchUserHash, req.password ?? "")
-                     != PasswordVerificationResult.Failed;
-
-    if (user is null || !user.IsActive || !passwordOk)
-        return Results.Json(new { error = "wrong username or password" }, statusCode: StatusCodes.Status401Unauthorized);
-
-    // Bookkeeping only — don't make the caller wait on a write, and don't let it
-    // fail the login. (Keeps login off the single user-DB write lock.)
-    _ = Task.Run(() => users.SetLastLoginAsync(user.Id, CancellationToken.None));
-
-    var identity = new ClaimsIdentity(
-    [
-        new Claim(ClaimTypes.NameIdentifier, user.Id),
-        new Claim(ClaimTypes.Name, user.Username),
-        new Claim("org", user.OrganisationId),
-    ], authenticationType: "Align");
-    await ctx.SignInAsync("Align", new ClaimsPrincipal(identity));
-
-    return Results.Ok(new { username = user.Username, organisationId = user.OrganisationId });
-});
-
-app.MapPost("/api/auth/logout", async (HttpContext ctx) =>
-{
-    await ctx.SignOutAsync("Align");
-    return Results.Ok(new { ok = true });
-});
-
-app.MapGet("/api/auth/me", (HttpContext ctx) =>
-    ctx.User.Identity?.IsAuthenticated == true
-        ? Results.Ok(new
-        {
-            authenticated = true,
-            username = ctx.User.Identity!.Name,
-            organisationId = ctx.User.FindFirstValue("org"),
-        })
-        : Results.Json(new { authenticated = false }, statusCode: StatusCodes.Status401Unauthorized));
-
-// Change your own password. Must be signed in and prove the current password.
-app.MapPost("/api/auth/change-password", async (ChangePasswordRequest req, HttpContext ctx,
-    IUserRepository users, IPasswordHasher<User> hasher, CancellationToken ct) =>
-{
-    var id = ctx.User.FindFirstValue(ClaimTypes.NameIdentifier);
-    var user = id is null ? null : await users.FindByIdAsync(id, ct);
-    if (user is null)
-        return Results.Json(new { error = "not signed in" }, statusCode: StatusCodes.Status401Unauthorized);
-
-    var current = req.currentPassword ?? "";
-    var next = req.newPassword ?? "";
-
-    if (hasher.VerifyHashedPassword(user, user.PasswordHash, current) == PasswordVerificationResult.Failed)
-        return Results.Json(new { error = "current password is wrong" }, statusCode: StatusCodes.Status400BadRequest);
-    if (next.Length < 8)
-        return Results.Json(new { error = "new password must be at least 8 characters" }, statusCode: StatusCodes.Status400BadRequest);
-    if (next == current)
-        return Results.Json(new { error = "new password must be different" }, statusCode: StatusCodes.Status400BadRequest);
-
-    await users.SetPasswordAsync(user.Id, hasher.HashPassword(user, next), ct);
-    return Results.Ok(new { changed = true });
-}).RequireAuthorization();
-
+// Reading the board needs "state.read"; changing or clearing it needs "state.write".
+// A read-only member has only the first, so their PUT/DELETE come back 403.
 app.MapGet("/api/state", async (HttpContext ctx, IStateRepository db, CancellationToken ct) =>
 {
     var state = await db.LoadAsync(OrgOf(ctx, testMode), ct);
     return state is null ? Results.Json(new { exists = false }) : Results.Json(state);
-}).RequireAuthorization();
+}).RequireAuthorization(AuthPolicies.Policy(AuthPolicies.StateRead));
 
 app.MapPut("/api/state", async (AlignmentState state, HttpContext ctx, IStateRepository db, CancellationToken ct) =>
 {
     await db.SaveAsync(OrgOf(ctx, testMode), state, ct);
     return Results.Ok(new { saved = true });
-}).RequireAuthorization();
+}).RequireAuthorization(AuthPolicies.Policy(AuthPolicies.StateWrite));
 
 // The page's "Reset to defaults" button calls this so the reload that follows
-// starts from the built-in defaults, not the stored state. Phase 3 scopes it to
-// the caller's own organisation via the auth token.
+// starts from the built-in defaults, not the stored state.
 app.MapDelete("/api/state", async (HttpContext ctx, IStateRepository db, CancellationToken ct) =>
 {
     await db.ResetAsync(OrgOf(ctx, testMode), ct);
     return Results.Ok(new { reset = true });
-}).RequireAuthorization();
+}).RequireAuthorization(AuthPolicies.Policy(AuthPolicies.StateWrite));
 
 // Test-only helpers so the Playwright suite can set itself up. Never in production.
 if (testMode)
@@ -269,30 +179,60 @@ if (testMode)
         return Results.Ok(new { reset = true });
     });
 
-    // Force a sign-in account to exist with exactly this password and active.
-    // Idempotent to a known state so a test that changes the password does not
-    // leak into the next run (the test DB is not wiped between runs).
-    app.MapPost("/api/test/user", async (LoginRequest req, IUserRepository users,
-        IPasswordHasher<User> hasher, CancellationToken ct) =>
+    // Read a board's state without a token — so a test can assert what the DB holds
+    // without threading the in-page access token through page.request.
+    app.MapGet("/api/test/state", async (HttpContext ctx, IStateRepository db, CancellationToken ct) =>
     {
-        var name = req.username ?? "playwright";
-        var hash = hasher.HashPassword(null!, req.password ?? "");
+        var state = await db.LoadAsync(OrgOf(ctx, testMode), ct);
+        return state is null ? Results.Json(new { exists = false }) : Results.Json(state);
+    });
+
+    // Force a sign-in account to exist with exactly this password, active, and with
+    // no forced password change — a known state so a test that changes the password
+    // does not leak into the next run (the test DB is not wiped between runs).
+    app.MapPost("/api/test/user", async (TestUserRequest req, IUserStore users, UserProvisioningService provisioning,
+        BuildingBlocks.Auth.Passwords.PasswordService passwords, CancellationToken ct) =>
+    {
+        var name = string.IsNullOrWhiteSpace(req.username) ? "playwright" : req.username!;
+        var pass = req.password ?? "";
+        var org = string.IsNullOrWhiteSpace(req.org) ? "demo" : req.org!;
+
+        var role = string.IsNullOrWhiteSpace(req.role) ? "Member" : req.role!;
+        var perms = string.IsNullOrWhiteSpace(req.permissions) ? "state.read state.write" : req.permissions!;
 
         var existing = await users.FindByUsernameAsync(name, ct);
         if (existing is not null)
         {
-            await users.SetPasswordAsync(existing.Id, hash, ct);
+            // Reset to a fully known state — including 2FA off and the requested
+            // role/permissions — so a re-used deterministic username starts clean.
+            await users.UpdateAsync(existing with
+            {
+                PasswordHash = passwords.Hash(pass),
+                OrganisationId = org,
+                Role = role,
+                Permissions = perms,
+                IsActive = true,
+                MustChangePassword = false,
+                TwoFactorEnabled = false,
+                TotpSecretProtected = null,
+                AccessEndsUtc = DateTimeOffset.UtcNow.AddYears(10),
+            }, ct);
             return Results.Ok(new { created = false });
         }
 
-        await users.CreateAsync(new User
+        var result = await provisioning.CreateAsync(new NewUserRequest
         {
-            Id = Guid.NewGuid().ToString("n"),
             Username = name,
-            PasswordHash = hash,
-            OrganisationId = "demo",
+            Password = pass,
+            OrganisationId = org,
+            Role = role,
+            Permissions = perms,
+            MustChangePassword = false,
+            AccessEndsUtc = DateTimeOffset.UtcNow.AddYears(10),
         }, ct);
-        return Results.Ok(new { created = true });
+        return result.Ok
+            ? Results.Ok(new { created = true })
+            : Results.Json(new { error = result.Error }, statusCode: StatusCodes.Status400BadRequest);
     });
 
     app.Logger.LogWarning("Alignment:TestMode is ON — /api/test/* is exposed and ?org= is honoured.");
@@ -300,6 +240,18 @@ if (testMode)
 
 app.Run();
 return 0;
+
+// Keep the library's auth database in the same SQLite file as the board data —
+// one file to back up, one path to configure (Alignment:Sqlite:DbPath).
+static void PointAuthDatabaseAtStateDatabase(IServiceCollection services, IConfiguration config)
+{
+    var path = config["Alignment:Sqlite:DbPath"];
+    if (!string.IsNullOrWhiteSpace(path))
+        services.PostConfigure<AuthDatabaseOptions>(o => o.Path = path);
+}
+
+/// <summary>Body of <c>POST /api/test/user</c> (TestMode only).</summary>
+public sealed record TestUserRequest(string? username, string? password, string? org, string? role, string? permissions);
 
 // Exposed so Alignment.Api.Tests can spin the app up with WebApplicationFactory.
 public partial class Program;
