@@ -9,6 +9,8 @@ public sealed record TwoFactorBody(string Ticket, string Code);
 
 public sealed record ChangePasswordBody(string CurrentPassword, string NewPassword);
 
+public sealed record ChangeUsernameBody(string NewUsername, string CurrentPassword);
+
 public sealed record ConfirmTwoFactorBody(string Code);
 public sealed record DisableTwoFactorBody(string CurrentPassword);
 

@@ -1100,6 +1100,7 @@
       /* Sign-in gate + change-password + two-factor panels */
       #authGate,
       #pwPanel,
+      #namePanel,
       #twoFaPanel {
         position: fixed;
         inset: 0;
@@ -1112,11 +1113,13 @@
       }
       #authGate[hidden],
       #pwPanel[hidden],
+      #namePanel[hidden],
       #twoFaPanel[hidden] {
         display: none;
       }
       #authForm,
       #pwForm,
+      #nameForm,
       #twoFaForm {
         width: 320px;
         display: flex;
@@ -1131,12 +1134,14 @@
       }
       #authForm h2,
       #pwForm h2,
+      #nameForm h2,
       #twoFaForm h2 {
         margin: 0;
         font-size: 18px;
       }
       #authForm label,
       #pwForm label,
+      #nameForm label,
       #twoFaForm label {
         display: flex;
         flex-direction: column;
@@ -1146,6 +1151,7 @@
       }
       #authForm input,
       #pwForm input,
+      #nameForm input,
       #twoFaForm input {
         padding: 8px 10px;
         border: 1px solid #3a4152;
@@ -1156,6 +1162,7 @@
       }
       #authSubmit,
       #pwSubmit,
+      #nameSubmit,
       #twoFaForm button[type="submit"] {
         margin-top: 4px;
         padding: 9px;
@@ -1168,12 +1175,14 @@
       }
       #authSubmit:disabled,
       #pwSubmit:disabled,
+      #nameSubmit:disabled,
       #twoFaForm button:disabled {
         opacity: 0.6;
         cursor: default;
       }
       #authErr,
       #pwMsg,
+      #nameMsg,
       #twoFaMsg {
         margin: 0;
         color: #ff6b6b;
@@ -1299,6 +1308,26 @@
       </form>
     </div>
 
+    <!-- Change your own username (opened from "Signed in as …" in the top bar) -->
+    <div id="namePanel" hidden>
+      <form id="nameForm" autocomplete="off">
+        <h2>Change username</h2>
+        <label
+          >New username
+          <input id="nameNew" autocapitalize="off" spellcheck="false" autocomplete="off" required
+        /></label>
+        <label
+          >Password
+          <input id="namePass" type="password" autocomplete="off" required
+        /></label>
+        <div style="display: flex; gap: 8px; margin-top: 4px">
+          <button type="submit" id="nameSubmit">Change</button>
+          <button type="button" id="nameCancel" class="topLink">Cancel</button>
+        </div>
+        <p id="nameMsg" role="alert" hidden></p>
+      </form>
+    </div>
+
     <!-- Phase 2: change your own password (opened from the top bar) -->
     <div id="pwPanel" hidden>
       <form id="pwForm" autocomplete="off">
@@ -1334,6 +1363,7 @@
         >
       </h2>
       <div style="display: flex; align-items: center; gap: 0.75rem">
+        <button id="whoami" class="topLink" type="button" title="Change username" hidden></button>
         <button id="changePwBtn" class="topLink" type="button" title="Change password" hidden>
           Change password
         </button>
@@ -1749,13 +1779,15 @@
         let accessToken = null;
         let mustChangePassword = false;
         let twoFactorEnabled = false;
+        let username = null;
 
         function apply(body) {
           if (body && body.accessToken) {
             accessToken = body.accessToken;
             mustChangePassword = !!body.mustChangePassword;
-            if (body.user && typeof body.user.twoFactorEnabled === "boolean") {
-              twoFactorEnabled = body.user.twoFactorEnabled;
+            if (body.user) {
+              if (typeof body.user.twoFactorEnabled === "boolean") twoFactorEnabled = body.user.twoFactorEnabled;
+              if (body.user.username) username = body.user.username;
             }
           }
           return body;
@@ -1833,6 +1865,17 @@
           return { ok: false, error: (body && body.detail) || "Could not turn off two-factor" };
         }
 
+        async function changeUsername(newUsername, currentPassword) {
+          const r = await authFetch("/api/auth/change-username", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ newUsername, currentPassword }),
+          });
+          const body = await r.json().catch(function () { return {}; });
+          if (r.ok) { apply(body); return { ok: true }; }
+          return { ok: false, error: (body && body.detail) || "Could not change username" };
+        }
+
         // A refresh token is single-use and rotates, so two overlapping refreshes
         // would make the second one look like a replayed (stolen) token and burn
         // the whole session. Collapse concurrent callers onto one in-flight call.
@@ -1884,10 +1927,12 @@
           setupTwoFactor,
           confirmTwoFactor,
           disableTwoFactor,
+          changeUsername,
           isSignedIn: function () { return !!accessToken; },
           mustChangePassword: function () { return mustChangePassword; },
           clearMustChangePassword: function () { mustChangePassword = false; },
           twoFactorEnabled: function () { return twoFactorEnabled; },
+          username: function () { return username; },
           // Test hook: drop the in-memory access token so the next authFetch has
           // to go through the silent-refresh path.
           _expireForTest: function () { accessToken = null; },
@@ -1920,6 +1965,12 @@
           if (signOutEl) signOutEl.hidden = false;
           var cp = document.getElementById("changePwBtn");
           if (cp) cp.hidden = false;
+          var who = document.getElementById("whoami");
+          if (who) {
+            var name = window.authClient.username();
+            who.hidden = !name;
+            if (name) who.textContent = "Signed in as " + name;
+          }
           var tf = document.getElementById("twoFaBtn");
           if (tf) {
             tf.hidden = false;
@@ -2151,6 +2202,82 @@
                 }
               } catch (_) {
                 msg("Could not reach the server — try again");
+              } finally {
+                submitEl.disabled = false;
+              }
+            });
+          }
+        }
+
+        document.addEventListener("DOMContentLoaded", wire);
+        return { open, close, wire };
+      })();
+
+      // === Change username (Phase 3.6) ===
+      // Opened from "Signed in as …" in the top bar. The account id never changes,
+      // so this only re-issues tokens with the new display name.
+      window.changeUsername = (function () {
+        let panel, form, newEl, passEl, msgEl, submitEl, cancelEl, openEl;
+
+        function els() {
+          panel = document.getElementById("namePanel");
+          form = document.getElementById("nameForm");
+          newEl = document.getElementById("nameNew");
+          passEl = document.getElementById("namePass");
+          msgEl = document.getElementById("nameMsg");
+          submitEl = document.getElementById("nameSubmit");
+          cancelEl = document.getElementById("nameCancel");
+          openEl = document.getElementById("whoami");
+        }
+
+        function msg(text, ok) {
+          if (!msgEl) els();
+          if (!msgEl) return;
+          msgEl.hidden = !text;
+          msgEl.textContent = text || "";
+          msgEl.style.color = ok ? "#4caf50" : "#ff6b6b";
+        }
+
+        function open() {
+          els();
+          if (!panel) return;
+          form.reset();
+          msg("");
+          newEl.value = window.authClient.username() || "";
+          panel.hidden = false;
+          try { newEl.focus(); newEl.select(); } catch (_) {}
+        }
+
+        function close() {
+          if (!panel) els();
+          if (panel) panel.hidden = true;
+        }
+
+        function wire() {
+          els();
+          if (openEl && !openEl.__wired) {
+            openEl.__wired = true;
+            openEl.addEventListener("click", open);
+          }
+          if (form && !form.__wired) {
+            form.__wired = true;
+            cancelEl.addEventListener("click", close);
+            form.addEventListener("submit", async function (e) {
+              e.preventDefault();
+              const name = (newEl.value || "").trim();
+              const pass = passEl.value || "";
+              if (!name || !pass) return;
+              submitEl.disabled = true;
+              msg("");
+              try {
+                const res = await window.authClient.changeUsername(name, pass);
+                if (res.ok) {
+                  msg("Username changed.", true);
+                  if (window.authGate) window.authGate.markSignedIn();
+                  setTimeout(close, 900);
+                } else {
+                  msg(res.error);
+                }
               } finally {
                 submitEl.disabled = false;
               }

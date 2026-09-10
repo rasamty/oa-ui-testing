@@ -25,11 +25,14 @@ export async function openApp(page: Page) {
   await page.request.post(`/api/test/reset?org=${org}`);
   await page.goto(`/?org=${org}`);
 
-  await expect(page.locator('#authGate')).toBeVisible();
+  // 30s: a login round-trips through the dev server (PBKDF2 + a token mint), which
+  // under the full parallel suite can briefly exceed the 5s default.
+  const NET = { timeout: 30_000 };
+  await expect(page.locator('#authGate')).toBeVisible(NET);
   await page.locator('#authUser').fill(TEST_USER);
   await page.locator('#authPass').fill(TEST_PASS);
   await page.locator('#authSubmit').click();
-  await expect(page.locator('#authGate'), 'sign-in should succeed').toBeHidden();
+  await expect(page.locator('#authGate'), 'sign-in should succeed').toBeHidden(NET);
 
   await page.evaluate(async () => {
     try { localStorage.clear(); sessionStorage.clear(); } catch { /* ignore */ }
@@ -41,7 +44,7 @@ export async function openApp(page: Page) {
     } catch { /* OPFS not available */ }
   });
   await page.reload();
-  await expect(page.locator('#authGate'), 'the test session should keep us signed in').toBeHidden();
+  await expect(page.locator('#authGate'), 'the test session should keep us signed in').toBeHidden(NET);
   await expect(page.locator('#leftList .item')).toHaveCount(1);   // built-in defaults
   await expect(page.locator('#rightList .item')).toHaveCount(1);
 }
