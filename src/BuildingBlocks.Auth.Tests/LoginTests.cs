@@ -1,4 +1,5 @@
 using BuildingBlocks.Auth;
+using BuildingBlocks.Auth.Admin;
 using BuildingBlocks.Auth.Data;
 using BuildingBlocks.Auth.Login;
 using BuildingBlocks.Auth.Passwords;
@@ -23,6 +24,8 @@ public sealed class LoginHarness : IDisposable
     public TotpService Totp { get; } = new();
     public RecoveryCodeService Recovery { get; }
     public TwoFactorService TwoFactor { get; }
+    public ITokenDenylist Denylist { get; }
+    public AdminService Admin { get; }
     public FakeClock Clock { get; } = new(DateTimeOffset.Parse("2026-01-01T09:00:00Z"));
 
     public LoginHarness(Action<AuthOptions>? configure = null)
@@ -45,15 +48,17 @@ public sealed class LoginHarness : IDisposable
         TwoFactor = new TwoFactorService(Users, Totp, protector, Recovery, recoveryStore, passwords, Refresh, opts, Clock);
         Login = new LoginService(Users, passwords, Access, Refresh, lockouts, tickets, Totp,
             protector, Recovery, opts, Clock);
+        Denylist = new SqliteTokenDenylist(db, Clock);
+        Admin = new AdminService(Users, Provisioning, passwords, Refresh, Denylist, recoveryStore, Clock);
     }
 
     public async Task<AuthUser> AddUserAsync(string username, string password,
         bool twoFactor = false, string? totpSecret = null, bool active = true,
-        DateTimeOffset? endsUtc = null, bool mustChangePassword = false)
+        DateTimeOffset? endsUtc = null, bool mustChangePassword = false, string org = "acme")
     {
         var provisioned = await Provisioning.CreateAsync(new NewUserRequest
         {
-            Username = username, Password = password, OrganisationId = "acme", MustChangePassword = mustChangePassword,
+            Username = username, Password = password, OrganisationId = org, MustChangePassword = mustChangePassword,
         });
         var u = provisioned.User! with
         {

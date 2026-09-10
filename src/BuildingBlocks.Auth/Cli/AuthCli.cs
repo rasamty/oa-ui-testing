@@ -47,6 +47,10 @@ public static class AuthCli
                 return await SetActive(store, opts, active: false, @out);
             case "enable":
                 return await SetActive(store, opts, active: true, @out);
+            case "set-role":
+                return await SetRole(store, opts, @out);
+            case "grant":
+                return await SetPermissions(store, opts, @out);
             default:
                 @out.WriteLine($"unknown command '{verb}'");
                 PrintUsage(@out);
@@ -143,6 +147,26 @@ public static class AuthCli
         return 0;
     }
 
+    private static async Task<int> SetRole(IUserStore store, Dictionary<string, string> o, TextWriter @out)
+    {
+        if (!Require(o, @out, out var missing, "username", "role")) return missing;
+        var u = await store.FindByUsernameAsync(o["username"]);
+        if (u is null) { @out.WriteLine("not found"); return 1; }
+        await store.UpdateAsync(u with { Role = o["role"] });
+        @out.WriteLine($"{u.Username} role is now {o["role"]}");
+        return 0;
+    }
+
+    private static async Task<int> SetPermissions(IUserStore store, Dictionary<string, string> o, TextWriter @out)
+    {
+        if (!Require(o, @out, out var missing, "username", "perms")) return missing;
+        var u = await store.FindByUsernameAsync(o["username"]);
+        if (u is null) { @out.WriteLine("not found"); return 1; }
+        await store.UpdateAsync(u with { Permissions = o["perms"] });
+        @out.WriteLine($"{u.Username} permissions are now [{o["perms"]}]");
+        return 0;
+    }
+
     /// <summary>Parse <c>--key value</c> and bare <c>--flag</c> pairs into a dictionary (keys without the dashes).</summary>
     private static Dictionary<string, string> ParseOptions(IEnumerable<string> args)
     {
@@ -186,6 +210,8 @@ public static class AuthCli
               reset-password  --username U --password P [--no-force-change]
               disable         --username U
               enable          --username U
+              set-role        --username U --role R          (e.g. Admin)
+              grant           --username U --perms "a b c"    (replaces the permission set)
             """);
     }
 }

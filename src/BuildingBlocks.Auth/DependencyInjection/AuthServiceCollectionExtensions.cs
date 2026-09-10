@@ -47,6 +47,7 @@ public static class AuthServiceCollectionExtensions
         services.AddSingleton<UserProvisioningService>();
         services.AddSingleton<IRefreshTokenStore, SqliteRefreshTokenStore>();
         services.AddSingleton<RefreshTokenService>();
+        services.AddSingleton<ITokenDenylist, SqliteTokenDenylist>();
         services.AddSingleton<ILoginAttemptTracker, SqliteLoginAttemptTracker>();
         services.AddSingleton<ILoginTicketStore, SqliteLoginTicketStore>();
         services.AddSingleton<IRecoveryCodeStore, SqliteRecoveryCodeStore>();
@@ -55,6 +56,7 @@ public static class AuthServiceCollectionExtensions
         services.AddSingleton<LoginService>();
         services.AddSingleton<PasswordChangeService>();
         services.AddSingleton<UsernameChangeService>();
+        services.AddSingleton<BuildingBlocks.Auth.Admin.AdminService>();
 
         // TOTP secrets are protected with ASP.NET data protection when the host has it
         // (every WebApplication does); otherwise a pass-through, so a CLI host still starts.

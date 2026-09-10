@@ -53,6 +53,12 @@ public sealed class AccessTokenService
         var now = DateTimeOffset.UtcNow;
         var exp = now.AddMinutes(_opts.AccessTokenMinutes);
 
+        // Never let a token outlive the account's access window — so a trial that
+        // ends mid-session stops working when the token expires, not 15 minutes
+        // after that. (Refresh then fails its own window check.)
+        if (user.AccessEndsUtc > now && user.AccessEndsUtc < exp)
+            exp = user.AccessEndsUtc;
+
         var claims = new List<Claim>
         {
             new("sub", user.Id),

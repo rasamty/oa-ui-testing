@@ -1243,6 +1243,92 @@
       #roBanner[hidden] {
         display: none;
       }
+      #adminPanel {
+        position: fixed;
+        inset: 0;
+        z-index: 100000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(8, 10, 18, 0.78);
+        backdrop-filter: blur(3px);
+      }
+      #adminPanel[hidden] {
+        display: none;
+      }
+      #adminBox {
+        width: min(760px, 94vw);
+        max-height: 86vh;
+        overflow: auto;
+        padding: 22px 24px;
+        border-radius: 12px;
+        background: #1b1f2a;
+        color: #e8eaf0;
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+        font: 13px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      }
+      #adminBox h2 {
+        margin: 0 0 12px;
+        font-size: 17px;
+      }
+      #adminBox table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 14px;
+      }
+      #adminBox th,
+      #adminBox td {
+        text-align: left;
+        padding: 6px 8px;
+        border-bottom: 1px solid #2c3242;
+        vertical-align: top;
+      }
+      #adminBox th {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        opacity: 0.6;
+      }
+      #adminBox .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      #adminBox button {
+        font: inherit;
+        font-size: 11px;
+        padding: 3px 7px;
+        border: 1px solid #3a4152;
+        border-radius: 5px;
+        background: #11141d;
+        color: inherit;
+        cursor: pointer;
+      }
+      #adminBox button.primary {
+        background: #3a7bd5;
+        border-color: #3a7bd5;
+        color: #fff;
+      }
+      #adminNew {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      #adminNew input {
+        padding: 5px 7px;
+        border: 1px solid #3a4152;
+        border-radius: 5px;
+        background: #11141d;
+        color: inherit;
+        font: inherit;
+      }
+      #adminMsg {
+        margin: 0;
+        font-size: 12px;
+        min-height: 1em;
+      }
     </style>
   </head>
   <body>
@@ -1324,6 +1410,26 @@
       </form>
     </div>
 
+    <!-- Admin: manage sign-in accounts (needs perm: users.admin). -->
+    <div id="adminPanel" hidden>
+      <div id="adminBox">
+        <h2>Users</h2>
+        <div id="adminNew">
+          <input id="adminNewUser" placeholder="username" autocapitalize="off" spellcheck="false" />
+          <input id="adminNewPass" placeholder="temporary password" type="text" />
+          <label style="font-size: 12px; opacity: 0.8"
+            ><input id="adminNewReadOnly" type="checkbox" /> read-only</label
+          >
+          <button id="adminCreate" class="primary" type="button">Add user</button>
+        </div>
+        <div id="adminList"></div>
+        <p id="adminMsg"></p>
+        <div style="text-align: right">
+          <button id="adminClose" type="button">Close</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Shown when the signed-in account cannot write the board (perm: state.write missing). -->
     <div id="roBanner" hidden>
       You have read-only access — changes won’t be saved.
@@ -1385,6 +1491,7 @@
       </h2>
       <div style="display: flex; align-items: center; gap: 0.75rem">
         <button id="whoami" class="topLink" type="button" title="Change username" hidden></button>
+        <button id="adminBtn" class="topLink" type="button" title="Manage users" hidden>Users</button>
         <button id="changePwBtn" class="topLink" type="button" title="Change password" hidden>
           Change password
         </button>
@@ -1801,6 +1908,7 @@
         let mustChangePassword = false;
         let twoFactorEnabled = false;
         let username = null;
+        let role = null;
         let permissions = []; // perm claims from the token's user block
 
         function apply(body) {
@@ -1810,6 +1918,7 @@
             if (body.user) {
               if (typeof body.user.twoFactorEnabled === "boolean") twoFactorEnabled = body.user.twoFactorEnabled;
               if (body.user.username) username = body.user.username;
+              if (body.user.role) role = body.user.role;
               if (Array.isArray(body.user.permissions)) permissions = body.user.permissions;
             }
           }
@@ -1957,6 +2066,7 @@
           twoFactorEnabled: function () { return twoFactorEnabled; },
           username: function () { return username; },
           canWrite: function () { return permissions.indexOf("state.write") !== -1; },
+          canAdmin: function () { return role === "Admin" || permissions.indexOf("users.admin") !== -1; },
           // Test hook: drop the in-memory access token so the next authFetch has
           // to go through the silent-refresh path.
           _expireForTest: function () { accessToken = null; },
@@ -2002,6 +2112,8 @@
               ? "Two-factor: on"
               : "Two-factor: off";
           }
+          var ab = document.getElementById("adminBtn");
+          if (ab) ab.hidden = !window.authClient.canAdmin();
         }
 
         function askForCode() {
@@ -2426,6 +2538,170 @@
 
         document.addEventListener("DOMContentLoaded", wire);
         return { open, close, wire };
+      })();
+
+      // === Admin: manage users (Phase 3.8) ===
+      // Opened from the "Users" top-bar button (visible to users.admin / Admin).
+      // Talks to /api/auth/admin/users/*.
+      window.adminUsers = (function () {
+        var panel, listEl, msgEl, closeEl, openEl, createEl, newUserEl, newPassEl, newRoEl;
+
+        function els() {
+          panel = document.getElementById("adminPanel");
+          listEl = document.getElementById("adminList");
+          msgEl = document.getElementById("adminMsg");
+          closeEl = document.getElementById("adminClose");
+          openEl = document.getElementById("adminBtn");
+          createEl = document.getElementById("adminCreate");
+          newUserEl = document.getElementById("adminNewUser");
+          newPassEl = document.getElementById("adminNewPass");
+          newRoEl = document.getElementById("adminNewReadOnly");
+        }
+
+        function msg(text, ok) {
+          if (!msgEl) els();
+          if (msgEl) {
+            msgEl.textContent = text || "";
+            msgEl.style.color = ok ? "#4caf50" : "#ff6b6b";
+          }
+        }
+
+        function api(path, opts) {
+          return window.authClient.authFetch("/api/auth/admin/users" + path, opts);
+        }
+
+        async function refresh() {
+          var r = await api("");
+          if (!r.ok) { msg("Could not load users."); return; }
+          var users = await r.json();
+          render(users);
+        }
+
+        function render(users) {
+          var rows = users
+            .map(function (u) {
+              var trial = new Date(u.accessEndsUtc).toISOString().slice(0, 10);
+              return (
+                "<tr data-id='" + u.id + "'>" +
+                "<td>" + esc(u.username) + "</td>" +
+                "<td>" + esc(u.role) + "</td>" +
+                "<td>" + (u.isActive ? "yes" : "<b>no</b>") + "</td>" +
+                "<td>" + (u.twoFactorEnabled ? "on" : "off") + "</td>" +
+                "<td>" + trial + "</td>" +
+                "<td class='actions'>" +
+                (u.isActive
+                  ? "<button data-act='disable'>Disable</button>"
+                  : "<button data-act='enable'>Enable</button>") +
+                "<button data-act='reset-pw'>Reset password</button>" +
+                "<button data-act='reset-2fa'>Reset 2FA</button>" +
+                "<button data-act='revoke'>Revoke sessions</button>" +
+                "<button data-act='extend'>+14d</button>" +
+                "</td></tr>"
+              );
+            })
+            .join("");
+          listEl.innerHTML =
+            "<table><thead><tr><th>User</th><th>Role</th><th>Active</th><th>2FA</th>" +
+            "<th>Access ends</th><th>Actions</th></tr></thead><tbody>" + rows + "</tbody></table>";
+        }
+
+        function esc(s) {
+          return String(s).replace(/[&<>"]/g, function (c) {
+            return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+          });
+        }
+
+        async function act(id, action) {
+          var opts = { method: "POST" };
+          if (action === "disable") return api("/" + id + "/disable", opts);
+          if (action === "enable") return api("/" + id + "/enable", opts);
+          if (action === "reset-2fa") return api("/" + id + "/reset-2fa", opts);
+          if (action === "revoke") return api("/" + id + "/revoke-sessions", opts);
+          if (action === "extend")
+            return api("/" + id + "/extend-trial", jsonBody({ days: 14 }));
+          if (action === "reset-pw") {
+            var pw = prompt("New temporary password for this user (min 12 chars):");
+            if (!pw) return null;
+            return api("/" + id + "/reset-password", jsonBody({ newPassword: pw, mustChange: true }));
+          }
+          return null;
+        }
+
+        function jsonBody(obj) {
+          return {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(obj),
+          };
+        }
+
+        function wire() {
+          els();
+          if (openEl && !openEl.__wired) {
+            openEl.__wired = true;
+            openEl.addEventListener("click", async function () {
+              panel.hidden = false;
+              msg("");
+              await refresh();
+            });
+          }
+          if (panel && !panel.__wired) {
+            panel.__wired = true;
+            closeEl.addEventListener("click", function () { panel.hidden = true; });
+
+            createEl.addEventListener("click", async function () {
+              var name = (newUserEl.value || "").trim();
+              var pw = newPassEl.value || "";
+              if (!name || !pw) return msg("Username and a temporary password are required.");
+              createEl.disabled = true;
+              try {
+                var r = await api(
+                  "",
+                  jsonBody({
+                    username: name,
+                    password: pw,
+                    permissions: newRoEl.checked ? "state.read" : "state.read state.write",
+                    mustChangePassword: true,
+                  })
+                );
+                if (r.ok) {
+                  newUserEl.value = "";
+                  newPassEl.value = "";
+                  msg("Added " + name + ".", true);
+                  await refresh();
+                } else {
+                  var b = await r.json().catch(function () { return {}; });
+                  msg(b.detail || "Could not add the user.");
+                }
+              } finally {
+                createEl.disabled = false;
+              }
+            });
+
+            listEl.addEventListener("click", async function (e) {
+              var btn = e.target.closest("button[data-act]");
+              if (!btn) return;
+              var tr = btn.closest("tr[data-id]");
+              if (!tr) return;
+              btn.disabled = true;
+              try {
+                var r = await act(tr.getAttribute("data-id"), btn.getAttribute("data-act"));
+                if (r && !r.ok) {
+                  var b = await r.json().catch(function () { return {}; });
+                  msg(b.detail || "That action failed.");
+                } else if (r) {
+                  msg("Done.", true);
+                }
+              } finally {
+                btn.disabled = false;
+                await refresh();
+              }
+            });
+          }
+        }
+
+        document.addEventListener("DOMContentLoaded", wire);
+        return { wire, refresh };
       })();
 
       // === Server persistence: the SQLite-backed API is the source of truth. ===
