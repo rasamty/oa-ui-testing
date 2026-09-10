@@ -196,12 +196,16 @@ if (testMode)
         var existing = await users.FindByUsernameAsync(name, ct);
         if (existing is not null)
         {
+            // Reset to a fully known state — including 2FA off — so a test that
+            // enrolled 2FA on this deterministic username does not leak forward.
             await users.UpdateAsync(existing with
             {
                 PasswordHash = passwords.Hash(pass),
                 OrganisationId = org,
                 IsActive = true,
                 MustChangePassword = false,
+                TwoFactorEnabled = false,
+                TotpSecretProtected = null,
                 AccessEndsUtc = DateTimeOffset.UtcNow.AddYears(10),
             }, ct);
             return Results.Ok(new { created = false });

@@ -56,6 +56,7 @@ public sealed class LoginService
     private readonly ILoginTicketStore _tickets;
     private readonly TotpService _totp;
     private readonly ITotpSecretProtector _protector;
+    private readonly RecoveryCodeService _recovery;
     private readonly AuthOptions _opts;
     private readonly TimeProvider _clock;
 
@@ -68,6 +69,7 @@ public sealed class LoginService
         ILoginTicketStore tickets,
         TotpService totp,
         ITotpSecretProtector protector,
+        RecoveryCodeService recovery,
         IOptions<AuthOptions> opts,
         TimeProvider? clock = null)
     {
@@ -79,6 +81,7 @@ public sealed class LoginService
         _tickets = tickets;
         _totp = totp;
         _protector = protector;
+        _recovery = recovery;
         _opts = opts.Value;
         _clock = clock ?? TimeProvider.System;
     }
@@ -135,15 +138,25 @@ public sealed class LoginService
         if (string.IsNullOrEmpty(user.TotpSecretProtected))
             return LoginResult.Fail(LoginOutcome.InvalidCredentials);
 
+        var code = (otp ?? "").Trim();
         var secret = _protector.Unprotect(user.TotpSecretProtected);
-        if (!_totp.Verify(secret, otp ?? "", now: _clock.GetUtcNow()))
+
+        var amr = "pwd otp";
+        var ok = _totp.Verify(secret, code, now: _clock.GetUtcNow());
+        if (!ok && await _recovery.ConsumeAsync(user.Id, code, ct))
+        {
+            ok = true;
+            amr = "pwd rc"; // signed in with a recovery code
+        }
+
+        if (!ok)
         {
             await _lockouts.RecordFailureAsync(user.Username, ct);
             return LoginResult.Fail(LoginOutcome.InvalidCredentials);
         }
 
         await _lockouts.ResetAsync(user.Username, ct);
-        return await IssueForAsync(user, amr: "pwd otp", ct);
+        return await IssueForAsync(user, amr, ct);
     }
 
     private async Task<LoginResult> IssueForAsync(AuthUser user, string amr, CancellationToken ct)

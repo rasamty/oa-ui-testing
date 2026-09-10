@@ -1097,9 +1097,10 @@
         pointer-events: none !important;
       }
 
-      /* Phase 2: sign-in gate + change-password panel */
+      /* Sign-in gate + change-password + two-factor panels */
       #authGate,
-      #pwPanel {
+      #pwPanel,
+      #twoFaPanel {
         position: fixed;
         inset: 0;
         z-index: 100000;
@@ -1110,12 +1111,14 @@
         backdrop-filter: blur(3px);
       }
       #authGate[hidden],
-      #pwPanel[hidden] {
+      #pwPanel[hidden],
+      #twoFaPanel[hidden] {
         display: none;
       }
       #authForm,
-      #pwForm {
-        width: 300px;
+      #pwForm,
+      #twoFaForm {
+        width: 320px;
         display: flex;
         flex-direction: column;
         gap: 14px;
@@ -1127,12 +1130,14 @@
         font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
       }
       #authForm h2,
-      #pwForm h2 {
+      #pwForm h2,
+      #twoFaForm h2 {
         margin: 0;
         font-size: 18px;
       }
       #authForm label,
-      #pwForm label {
+      #pwForm label,
+      #twoFaForm label {
         display: flex;
         flex-direction: column;
         gap: 4px;
@@ -1140,7 +1145,8 @@
         opacity: 0.8;
       }
       #authForm input,
-      #pwForm input {
+      #pwForm input,
+      #twoFaForm input {
         padding: 8px 10px;
         border: 1px solid #3a4152;
         border-radius: 6px;
@@ -1149,7 +1155,8 @@
         font-size: 14px;
       }
       #authSubmit,
-      #pwSubmit {
+      #pwSubmit,
+      #twoFaForm button[type="submit"] {
         margin-top: 4px;
         padding: 9px;
         border: 0;
@@ -1160,15 +1167,39 @@
         cursor: pointer;
       }
       #authSubmit:disabled,
-      #pwSubmit:disabled {
+      #pwSubmit:disabled,
+      #twoFaForm button:disabled {
         opacity: 0.6;
         cursor: default;
       }
       #authErr,
-      #pwMsg {
+      #pwMsg,
+      #twoFaMsg {
         margin: 0;
         color: #ff6b6b;
         font-size: 12px;
+      }
+      #twoFaSecret {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        letter-spacing: 1px;
+        background: #11141d;
+        border: 1px solid #3a4152;
+        border-radius: 6px;
+        padding: 8px 10px;
+        word-break: break-all;
+        user-select: all;
+      }
+      #twoFaRecovery {
+        margin: 0;
+        padding: 10px 12px;
+        list-style: none;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px 14px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        background: #11141d;
+        border: 1px solid #3a4152;
+        border-radius: 6px;
       }
       .topLink {
         background: transparent;
@@ -1213,8 +1244,58 @@
             autocomplete="current-password"
             required
         /></label>
+        <label id="authOtpRow" hidden
+          >Authentication code
+          <input
+            id="authOtp"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            autocapitalize="off"
+            spellcheck="false"
+            placeholder="6-digit code or recovery code"
+        /></label>
         <button type="submit" id="authSubmit">Sign in</button>
         <p id="authErr" role="alert" hidden></p>
+      </form>
+    </div>
+
+    <!-- Two-factor: set up / turn off (opened from the top bar) -->
+    <div id="twoFaPanel" hidden>
+      <form id="twoFaForm" autocomplete="off">
+        <h2 id="twoFaTitle">Two-factor authentication</h2>
+
+        <div id="twoFaSetup" hidden>
+          <p style="margin: 0 0 8px; opacity: 0.8; font-size: 12px">
+            Add this key to an authenticator app (Google Authenticator, 1Password, …),
+            then enter the 6-digit code it shows.
+          </p>
+          <div id="twoFaSecret"></div>
+          <a id="twoFaUri" href="#" style="font-size: 11px; opacity: 0.7">Open in an authenticator app</a>
+          <label style="margin-top: 10px"
+            >6-digit code
+            <input id="twoFaCode" inputmode="numeric" autocomplete="one-time-code" spellcheck="false" />
+          </label>
+        </div>
+
+        <div id="twoFaCodes" hidden>
+          <p style="margin: 0 0 8px; opacity: 0.85; font-size: 12px">
+            Save these recovery codes somewhere safe. Each one works once if you lose your device.
+          </p>
+          <ul id="twoFaRecovery"></ul>
+        </div>
+
+        <div id="twoFaDisable" hidden>
+          <label
+            >Password
+            <input id="twoFaPassword" type="password" autocomplete="off" />
+          </label>
+        </div>
+
+        <div style="display: flex; gap: 8px; margin-top: 4px">
+          <button type="submit" id="twoFaSubmit">Continue</button>
+          <button type="button" id="twoFaCancel" class="topLink">Cancel</button>
+        </div>
+        <p id="twoFaMsg" role="alert" hidden></p>
       </form>
     </div>
 
@@ -1255,6 +1336,9 @@
       <div style="display: flex; align-items: center; gap: 0.75rem">
         <button id="changePwBtn" class="topLink" type="button" title="Change password" hidden>
           Change password
+        </button>
+        <button id="twoFaBtn" class="topLink" type="button" title="Two-factor authentication" hidden>
+          Two-factor: off
         </button>
         <button id="signOutBtn" class="topLink" type="button" title="Sign out" hidden>
           Sign out
@@ -1664,11 +1748,15 @@
       window.authClient = (function () {
         let accessToken = null;
         let mustChangePassword = false;
+        let twoFactorEnabled = false;
 
         function apply(body) {
           if (body && body.accessToken) {
             accessToken = body.accessToken;
             mustChangePassword = !!body.mustChangePassword;
+            if (body.user && typeof body.user.twoFactorEnabled === "boolean") {
+              twoFactorEnabled = body.user.twoFactorEnabled;
+            }
           }
           return body;
         }
@@ -1686,8 +1774,7 @@
               return { ok: true, mustChangePassword: !!body.mustChangePassword };
             }
             if (r.ok && body.ticket) {
-              // 2FA is not wired into the page yet (Phase 3.5).
-              return { ok: false, error: "This account needs a one-time code — not supported here yet." };
+              return { ok: false, twoFactor: true, ticket: body.ticket };
             }
             if (r.status === 401) {
               return { ok: false, error: "Wrong username or password" };
@@ -1699,6 +1786,51 @@
           } catch (_) {
             return { ok: false, error: "Could not reach the server — try again" };
           }
+        }
+
+        // Second step of a 2FA sign-in: exchange the ticket + code for tokens.
+        async function completeTwoFactor(ticket, code) {
+          try {
+            const r = await fetch("/api/auth/login/2fa", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ticket, code }),
+            });
+            const body = await r.json().catch(function () { return {}; });
+            if (r.ok && body.accessToken) {
+              apply(body);
+              return { ok: true, mustChangePassword: !!body.mustChangePassword };
+            }
+            return { ok: false, error: "That code is not right — try again." };
+          } catch (_) {
+            return { ok: false, error: "Could not reach the server — try again" };
+          }
+        }
+
+        // --- 2FA management (all need a valid access token) ---
+        async function setupTwoFactor() {
+          const r = await authFetch("/api/auth/2fa/setup", { method: "POST" });
+          return r.ok ? r.json() : null;
+        }
+        async function confirmTwoFactor(code) {
+          const r = await authFetch("/api/auth/2fa/confirm", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ code }),
+          });
+          const body = await r.json().catch(function () { return {}; });
+          if (r.ok) { twoFactorEnabled = true; return { ok: true, recoveryCodes: body.recoveryCodes || [] }; }
+          return { ok: false, error: (body && body.detail) || "Could not turn on two-factor" };
+        }
+        async function disableTwoFactor(currentPassword) {
+          const r = await authFetch("/api/auth/2fa/disable", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ currentPassword }),
+          });
+          if (r.ok) { twoFactorEnabled = false; return { ok: true }; }
+          const body = await r.json().catch(function () { return {}; });
+          return { ok: false, error: (body && body.detail) || "Could not turn off two-factor" };
         }
 
         // A refresh token is single-use and rotates, so two overlapping refreshes
@@ -1744,13 +1876,18 @@
 
         return {
           login,
+          completeTwoFactor,
           refresh,
           authFetch,
           logout,
           apply,
+          setupTwoFactor,
+          confirmTwoFactor,
+          disableTwoFactor,
           isSignedIn: function () { return !!accessToken; },
           mustChangePassword: function () { return mustChangePassword; },
           clearMustChangePassword: function () { mustChangePassword = false; },
+          twoFactorEnabled: function () { return twoFactorEnabled; },
           // Test hook: drop the in-memory access token so the next authFetch has
           // to go through the silent-refresh path.
           _expireForTest: function () { accessToken = null; },
@@ -1761,8 +1898,9 @@
       // A small username/password panel. Shown when we are not signed in, or when a
       // later request stays 401 even after a token refresh.
       window.authGate = (function () {
-        let gate, form, userEl, passEl, errEl, submitEl, signOutEl;
+        let gate, form, userEl, passEl, errEl, submitEl, signOutEl, otpRow, otpEl;
         let resolveLogin = null; // set while loadOnStartup is waiting for a sign-in
+        let pendingTicket = null; // set after a password is accepted but 2FA is still owed
 
         function els() {
           gate = document.getElementById("authGate");
@@ -1772,6 +1910,8 @@
           errEl = document.getElementById("authErr");
           submitEl = document.getElementById("authSubmit");
           signOutEl = document.getElementById("signOutBtn");
+          otpRow = document.getElementById("authOtpRow");
+          otpEl = document.getElementById("authOtp");
         }
 
         // Reveal the signed-in controls (called once we know we're authenticated).
@@ -1780,6 +1920,39 @@
           if (signOutEl) signOutEl.hidden = false;
           var cp = document.getElementById("changePwBtn");
           if (cp) cp.hidden = false;
+          var tf = document.getElementById("twoFaBtn");
+          if (tf) {
+            tf.hidden = false;
+            tf.textContent = window.authClient.twoFactorEnabled()
+              ? "Two-factor: on"
+              : "Two-factor: off";
+          }
+        }
+
+        function askForCode() {
+          if (!otpRow) els();
+          if (otpRow) otpRow.hidden = false;
+          if (userEl) userEl.closest("label").hidden = true;
+          if (passEl) passEl.closest("label").hidden = true;
+          if (submitEl) submitEl.textContent = "Verify";
+          setTimeout(function () { try { otpEl.focus(); } catch (_) {} }, 30);
+        }
+
+        function finishSignIn(res) {
+          if (passEl) passEl.value = "";
+          hide();
+          markSignedIn();
+          if (res.mustChangePassword && window.changePassword) {
+            window.changePassword.open({ forced: true });
+          }
+          if (resolveLogin) {
+            const done = resolveLogin;
+            resolveLogin = null;
+            done();
+          } else if (!res.mustChangePassword) {
+            // session-expired path: reload so startup re-runs cleanly
+            location.reload();
+          }
         }
 
         function wire() {
@@ -1796,33 +1969,27 @@
           form.__wired = true;
           form.addEventListener("submit", async function (e) {
             e.preventDefault();
-            const u = (userEl.value || "").trim();
-            const p = passEl.value || "";
-            if (!u || !p) return;
             submitEl.disabled = true;
             errEl.hidden = true;
             try {
+              if (pendingTicket) {
+                const code = (otpEl.value || "").trim();
+                if (!code) return;
+                const res = await window.authClient.completeTwoFactor(pendingTicket, code);
+                if (res.ok) { pendingTicket = null; finishSignIn(res); }
+                else show(res.error || "That code is not right");
+                return;
+              }
+
+              const u = (userEl.value || "").trim();
+              const p = passEl.value || "";
+              if (!u || !p) return;
               const res = await window.authClient.login(u, p);
               if (res.ok) {
-                passEl.value = "";
-                hide();
-                markSignedIn();
-                if (res.mustChangePassword && window.changePassword) {
-                  // Must set a new password before the board is usable.
-                  window.changePassword.open({ forced: true });
-                  if (resolveLogin) {
-                    const done = resolveLogin;
-                    resolveLogin = null;
-                    done();
-                  }
-                } else if (resolveLogin) {
-                  const done = resolveLogin;
-                  resolveLogin = null;
-                  done();
-                } else {
-                  // session-expired path: reload so startup re-runs cleanly
-                  location.reload();
-                }
+                finishSignIn(res);
+              } else if (res.twoFactor) {
+                pendingTicket = res.ticket;
+                askForCode();
               } else {
                 show(res.error || "Wrong username or password");
               }
@@ -1843,7 +2010,7 @@
           }
           setTimeout(function () {
             try {
-              userEl.focus();
+              (pendingTicket ? otpEl : userEl).focus();
             } catch (_) {}
           }, 30);
         }
@@ -1881,7 +2048,7 @@
         }
 
         document.addEventListener("DOMContentLoaded", wire);
-        return { check, require, show, hide, onUnauthorized };
+        return { check, require, show, hide, onUnauthorized, markSignedIn };
       })();
 
       // === Change password (Phase 2) ===
@@ -1984,6 +2151,121 @@
                 }
               } catch (_) {
                 msg("Could not reach the server — try again");
+              } finally {
+                submitEl.disabled = false;
+              }
+            });
+          }
+        }
+
+        document.addEventListener("DOMContentLoaded", wire);
+        return { open, close, wire };
+      })();
+
+      // === Two-factor setup / disable (Phase 3.5) ===
+      // Opened from the "Two-factor: on/off" button in the top bar.
+      window.twoFactor = (function () {
+        let panel, form, title, setupBox, secretEl, uriEl, codeEl, codesBox, list,
+          disableBox, passEl, submitEl, cancelEl, msgEl, openEl;
+        let mode = "idle"; // "setup" | "codes" | "disable"
+
+        function els() {
+          panel = document.getElementById("twoFaPanel");
+          form = document.getElementById("twoFaForm");
+          title = document.getElementById("twoFaTitle");
+          setupBox = document.getElementById("twoFaSetup");
+          secretEl = document.getElementById("twoFaSecret");
+          uriEl = document.getElementById("twoFaUri");
+          codeEl = document.getElementById("twoFaCode");
+          codesBox = document.getElementById("twoFaCodes");
+          list = document.getElementById("twoFaRecovery");
+          disableBox = document.getElementById("twoFaDisable");
+          passEl = document.getElementById("twoFaPassword");
+          submitEl = document.getElementById("twoFaSubmit");
+          cancelEl = document.getElementById("twoFaCancel");
+          msgEl = document.getElementById("twoFaMsg");
+          openEl = document.getElementById("twoFaBtn");
+        }
+
+        function msg(text, ok) {
+          if (!msgEl) els();
+          if (!msgEl) return;
+          msgEl.hidden = !text;
+          msgEl.textContent = text || "";
+          msgEl.style.color = ok ? "#4caf50" : "#ff6b6b";
+        }
+
+        function showOnly(box) {
+          [setupBox, codesBox, disableBox].forEach(function (b) { if (b) b.hidden = b !== box; });
+        }
+
+        function close() {
+          if (!panel) els();
+          if (panel) panel.hidden = true;
+          mode = "idle";
+        }
+
+        async function open() {
+          els();
+          if (!panel) return;
+          form.reset();
+          msg("");
+          if (window.authClient.twoFactorEnabled()) {
+            mode = "disable";
+            title.textContent = "Turn off two-factor";
+            showOnly(disableBox);
+            submitEl.textContent = "Turn off";
+          } else {
+            mode = "setup";
+            title.textContent = "Set up two-factor";
+            const setup = await window.authClient.setupTwoFactor();
+            if (!setup) { msg("Could not start setup — try again."); showOnly(null); }
+            else {
+              secretEl.textContent = setup.secret;
+              uriEl.href = setup.otpAuthUri;
+              showOnly(setupBox);
+              submitEl.textContent = "Confirm";
+            }
+          }
+          panel.hidden = false;
+        }
+
+        function wire() {
+          els();
+          if (openEl && !openEl.__wired) {
+            openEl.__wired = true;
+            openEl.addEventListener("click", open);
+          }
+          if (form && !form.__wired) {
+            form.__wired = true;
+            cancelEl.addEventListener("click", close);
+            form.addEventListener("submit", async function (e) {
+              e.preventDefault();
+              submitEl.disabled = true;
+              msg("");
+              try {
+                if (mode === "setup") {
+                  const res = await window.authClient.confirmTwoFactor((codeEl.value || "").trim());
+                  if (!res.ok) return msg(res.error);
+                  mode = "codes";
+                  title.textContent = "Save your recovery codes";
+                  list.innerHTML = "";
+                  res.recoveryCodes.forEach(function (c) {
+                    const li = document.createElement("li");
+                    li.textContent = c;
+                    list.appendChild(li);
+                  });
+                  showOnly(codesBox);
+                  submitEl.textContent = "I've saved these";
+                } else if (mode === "codes") {
+                  close();
+                  if (window.authGate) window.authGate.markSignedIn(); // refresh the button label
+                } else if (mode === "disable") {
+                  const res = await window.authClient.disableTwoFactor(passEl.value || "");
+                  if (!res.ok) return msg(res.error);
+                  close();
+                  if (window.authGate) window.authGate.markSignedIn();
+                }
               } finally {
                 submitEl.disabled = false;
               }

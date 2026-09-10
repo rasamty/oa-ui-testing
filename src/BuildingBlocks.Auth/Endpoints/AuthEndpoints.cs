@@ -1,6 +1,7 @@
 using BuildingBlocks.Auth.Login;
 using BuildingBlocks.Auth.Passwords;
 using BuildingBlocks.Auth.Tokens;
+using BuildingBlocks.Auth.Totp;
 using BuildingBlocks.Auth.Users;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -106,6 +107,52 @@ public static class AuthEndpoints
             return Results.Ok(new TokenResponse(
                 r.AccessToken!, r.AccessExpiresUtc!.Value, "Bearer",
                 r.RefreshToken!.Raw, r.RefreshToken.ExpiresUtc, false, ToMe(r.User!)));
+        }).RequireAuthorization();
+
+        // ---- two-factor enrolment ----
+
+        group.MapPost("/2fa/setup", async (HttpContext http, TwoFactorService twoFactor) =>
+        {
+            var sub = http.User.FindFirst("sub")?.Value;
+            if (sub is null) return Results.Unauthorized();
+            var setup = await twoFactor.BeginSetupAsync(sub, http.RequestAborted);
+            return setup is null
+                ? Results.Unauthorized()
+                : Results.Ok(new TwoFactorSetupResponse(setup.Secret, setup.OtpAuthUri, setup.AlreadyEnabled));
+        }).RequireAuthorization();
+
+        group.MapPost("/2fa/confirm", async (ConfirmTwoFactorBody body, HttpContext http, TwoFactorService twoFactor) =>
+        {
+            var sub = http.User.FindFirst("sub")?.Value;
+            if (sub is null) return Results.Unauthorized();
+            var r = await twoFactor.ConfirmAsync(sub, body.Code, http.RequestAborted);
+            return r.Outcome switch
+            {
+                TwoFactorConfirmOutcome.Enabled =>
+                    Results.Ok(new RecoveryCodesResponse(r.RecoveryCodes ?? Array.Empty<string>())),
+                TwoFactorConfirmOutcome.WrongCode =>
+                    Results.Json(new { detail = "That code is not right — check your authenticator and try again." },
+                        statusCode: StatusCodes.Status400BadRequest),
+                _ => Results.Json(new { detail = "Start the setup first." },
+                        statusCode: StatusCodes.Status400BadRequest),
+            };
+        }).RequireAuthorization();
+
+        group.MapPost("/2fa/disable", async (DisableTwoFactorBody body, HttpContext http, TwoFactorService twoFactor) =>
+        {
+            var sub = http.User.FindFirst("sub")?.Value;
+            if (sub is null) return Results.Unauthorized();
+            var outcome = await twoFactor.DisableAsync(sub, body.CurrentPassword, http.RequestAborted);
+            return outcome switch
+            {
+                TwoFactorDisableOutcome.Disabled => Results.NoContent(),
+                TwoFactorDisableOutcome.WrongPassword =>
+                    Results.Json(new { detail = "Password is wrong." }, statusCode: StatusCodes.Status400BadRequest),
+                TwoFactorDisableOutcome.NotEnabled =>
+                    Results.Json(new { detail = "Two-factor is not on for this account." },
+                        statusCode: StatusCodes.Status400BadRequest),
+                _ => Results.Unauthorized(),
+            };
         }).RequireAuthorization();
 
         return app;

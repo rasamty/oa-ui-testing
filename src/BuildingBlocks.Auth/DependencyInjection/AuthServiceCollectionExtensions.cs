@@ -49,6 +49,9 @@ public static class AuthServiceCollectionExtensions
         services.AddSingleton<RefreshTokenService>();
         services.AddSingleton<ILoginAttemptTracker, SqliteLoginAttemptTracker>();
         services.AddSingleton<ILoginTicketStore, SqliteLoginTicketStore>();
+        services.AddSingleton<IRecoveryCodeStore, SqliteRecoveryCodeStore>();
+        services.AddSingleton<RecoveryCodeService>();
+        services.AddSingleton<TwoFactorService>();
         services.AddSingleton<LoginService>();
         services.AddSingleton<PasswordChangeService>();
 

@@ -9,6 +9,15 @@ public sealed record TwoFactorBody(string Ticket, string Code);
 
 public sealed record ChangePasswordBody(string CurrentPassword, string NewPassword);
 
+public sealed record ConfirmTwoFactorBody(string Code);
+public sealed record DisableTwoFactorBody(string CurrentPassword);
+
+/// <summary>Everything the client needs to add the account to an authenticator app.</summary>
+public sealed record TwoFactorSetupResponse(string Secret, string OtpAuthUri, bool AlreadyEnabled);
+
+/// <summary>The recovery codes, shown to the user exactly once.</summary>
+public sealed record RecoveryCodesResponse(IReadOnlyList<string> RecoveryCodes);
+
 /// <summary>
 /// What a successful login / refresh returns. The refresh token is ALSO set as an
 /// HttpOnly cookie; it is echoed here only so non-browser clients can store it.

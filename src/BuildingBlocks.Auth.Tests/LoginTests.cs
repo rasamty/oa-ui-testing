@@ -21,6 +21,8 @@ public sealed class LoginHarness : IDisposable
     public RefreshTokenService Refresh { get; }
     public AccessTokenService Access { get; }
     public TotpService Totp { get; } = new();
+    public RecoveryCodeService Recovery { get; }
+    public TwoFactorService TwoFactor { get; }
     public FakeClock Clock { get; } = new(DateTimeOffset.Parse("2026-01-01T09:00:00Z"));
 
     public LoginHarness(Action<AuthOptions>? configure = null)
@@ -37,8 +39,12 @@ public sealed class LoginHarness : IDisposable
         Refresh = new RefreshTokenService(new SqliteRefreshTokenStore(db), opts, Clock);
         var lockouts = new SqliteLoginAttemptTracker(db, opts, Clock);
         var tickets = new SqliteLoginTicketStore(db, Clock);
+        var protector = new NullTotpSecretProtector();
+        var recoveryStore = new SqliteRecoveryCodeStore(db);
+        Recovery = new RecoveryCodeService(recoveryStore, Clock);
+        TwoFactor = new TwoFactorService(Users, Totp, protector, Recovery, recoveryStore, passwords, Refresh, opts, Clock);
         Login = new LoginService(Users, passwords, Access, Refresh, lockouts, tickets, Totp,
-            new NullTotpSecretProtector(), opts, Clock);
+            protector, Recovery, opts, Clock);
     }
 
     public async Task<AuthUser> AddUserAsync(string username, string password,
