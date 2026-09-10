@@ -54,6 +54,7 @@ public static class AuthServiceCollectionExtensions
         services.AddSingleton<TwoFactorService>();
         services.AddSingleton<LoginService>();
         services.AddSingleton<PasswordChangeService>();
+        services.AddSingleton<UsernameChangeService>();
 
         // TOTP secrets are protected with ASP.NET data protection when the host has it
         // (every WebApplication does); otherwise a pass-through, so a CLI host still starts.

@@ -109,6 +109,30 @@ public static class AuthEndpoints
                 r.RefreshToken!.Raw, r.RefreshToken.ExpiresUtc, false, ToMe(r.User!)));
         }).RequireAuthorization();
 
+        // Change your own username. Needs the password. Returns a fresh token pair
+        // (the id / sub is unchanged, only the display name).
+        group.MapPost("/change-username", async (ChangeUsernameBody body, HttpContext http,
+            UsernameChangeService svc, IOptions<AuthOptions> opts) =>
+        {
+            var sub = http.User.FindFirst("sub")?.Value;
+            if (sub is null) return Results.Unauthorized();
+
+            var r = await svc.ChangeAsync(sub, body.NewUsername, body.CurrentPassword, http.RequestAborted);
+            if (!r.Ok)
+                return r.Outcome switch
+                {
+                    UsernameChangeOutcome.WrongPassword or UsernameChangeOutcome.PolicyViolation
+                        or UsernameChangeOutcome.Taken or UsernameChangeOutcome.Unchanged
+                        => Results.Json(new { detail = r.Error }, statusCode: StatusCodes.Status400BadRequest),
+                    _ => Results.Unauthorized(),
+                };
+
+            SetRefreshCookie(http, opts.Value, prefix, r.RefreshToken!);
+            return Results.Ok(new TokenResponse(
+                r.AccessToken!, r.AccessExpiresUtc!.Value, "Bearer",
+                r.RefreshToken!.Raw, r.RefreshToken.ExpiresUtc, r.User!.MustChangePassword, ToMe(r.User!)));
+        }).RequireAuthorization();
+
         // ---- two-factor enrolment ----
 
         group.MapPost("/2fa/setup", async (HttpContext http, TwoFactorService twoFactor) =>
