@@ -7,6 +7,8 @@ public sealed record LoginBody(string Username, string Password);
 
 public sealed record TwoFactorBody(string Ticket, string Code);
 
+public sealed record ChangePasswordBody(string CurrentPassword, string NewPassword);
+
 /// <summary>
 /// What a successful login / refresh returns. The refresh token is ALSO set as an
 /// HttpOnly cookie; it is echoed here only so non-browser clients can store it.

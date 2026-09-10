@@ -19,8 +19,10 @@ public sealed record RefreshResult(RefreshOutcome Outcome, string? UserId, Issue
 /// <summary>
 /// Issues opaque refresh tokens and rotates them. The raw token is
 /// <c>{id}.{secret}</c>; only the SHA-256 of the whole thing is stored. Presenting
-/// an already-revoked token is treated as theft: every refresh token for that user
-/// is revoked immediately.
+/// an already-revoked token is always rejected; with
+/// <see cref="AuthOptions.RevokeAllOnRefreshReuse"/> it also revokes every other
+/// session for that user (an aggressive theft response that can, under a racy
+/// client, log a legitimate user out).
 /// </summary>
 public sealed class RefreshTokenService
 {
@@ -65,8 +67,10 @@ public sealed class RefreshTokenService
 
         if (existing.RevokedUtc is not null)
         {
-            // A revoked token being replayed — assume it was stolen. Burn them all.
-            await _store.RevokeAllForUserAsync(existing.UserId, now, ct);
+            // A revoked token being replayed. Always reject it; optionally treat it
+            // as theft and drop every other session too.
+            if (_opts.RevokeAllOnRefreshReuse)
+                await _store.RevokeAllForUserAsync(existing.UserId, now, ct);
             return new RefreshResult(RefreshOutcome.Reused, existing.UserId, null);
         }
 

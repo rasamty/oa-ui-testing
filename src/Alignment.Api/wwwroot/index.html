@@ -1190,7 +1190,7 @@
     </style>
   </head>
   <body>
-    <!-- Phase 2: hidden until GET /api/auth/me says we are not signed in -->
+    <!-- Hidden until we know we are not signed in (Phase 3: bearer tokens). -->
     <div id="authGate" hidden>
       <form id="authForm" autocomplete="on">
         <h2>Sign in</h2>
@@ -1228,7 +1228,7 @@
         /></label>
         <label
           >New password
-          <input id="pwNew" type="password" autocomplete="off" minlength="8" required
+          <input id="pwNew" type="password" autocomplete="off" minlength="12" required
         /></label>
         <label
           >Confirm new password
@@ -1656,9 +1656,110 @@
       // Kick off load ASAP on first render (open or navigation to this page)
       document.addEventListener("DOMContentLoaded", loadOnStartup);
 
-      // === Sign-in gate (Phase 2) ===
-      // A small username/password panel. Shown when GET /api/auth/me says we are
-      // not authenticated, or when a later request unexpectedly returns 401.
+      // === Token client (Phase 3) ===
+      // Holds the short-lived access token in memory only. The refresh token lives
+      // in an HttpOnly cookie scoped to /api/auth that JavaScript cannot read; the
+      // browser sends it automatically on /api/auth/refresh. authFetch() attaches
+      // the access token and, on a 401, silently refreshes once and retries.
+      window.authClient = (function () {
+        let accessToken = null;
+        let mustChangePassword = false;
+
+        function apply(body) {
+          if (body && body.accessToken) {
+            accessToken = body.accessToken;
+            mustChangePassword = !!body.mustChangePassword;
+          }
+          return body;
+        }
+
+        async function login(username, password) {
+          try {
+            const r = await fetch("/api/auth/login", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ username, password }),
+            });
+            const body = await r.json().catch(function () { return {}; });
+            if (r.ok && body.accessToken) {
+              apply(body);
+              return { ok: true, mustChangePassword: !!body.mustChangePassword };
+            }
+            if (r.ok && body.ticket) {
+              // 2FA is not wired into the page yet (Phase 3.5).
+              return { ok: false, error: "This account needs a one-time code — not supported here yet." };
+            }
+            if (r.status === 401) {
+              return { ok: false, error: "Wrong username or password" };
+            }
+            if (r.status === 429) {
+              return { ok: false, error: "Too many attempts — wait a few minutes and try again." };
+            }
+            return { ok: false, error: (body && body.detail) || "Could not sign in" };
+          } catch (_) {
+            return { ok: false, error: "Could not reach the server — try again" };
+          }
+        }
+
+        // A refresh token is single-use and rotates, so two overlapping refreshes
+        // would make the second one look like a replayed (stolen) token and burn
+        // the whole session. Collapse concurrent callers onto one in-flight call.
+        let refreshing = null;
+        function refresh() {
+          if (refreshing) return refreshing;
+          refreshing = (async function () {
+            try {
+              const r = await fetch("/api/auth/refresh", { method: "POST" });
+              if (!r.ok) { accessToken = null; return false; }
+              apply(await r.json().catch(function () { return {}; }));
+              return !!accessToken;
+            } catch (_) {
+              return false;
+            } finally {
+              refreshing = null;
+            }
+          })();
+          return refreshing;
+        }
+
+        async function authFetch(url, opts) {
+          opts = opts || {};
+          function withAuth() {
+            const h = Object.assign({}, opts.headers || {});
+            if (accessToken) h["Authorization"] = "Bearer " + accessToken;
+            return Object.assign({}, opts, { headers: h });
+          }
+          let r = await fetch(url, withAuth());
+          if (r.status === 401 && (await refresh())) {
+            r = await fetch(url, withAuth());
+          }
+          return r;
+        }
+
+        async function logout() {
+          try { await fetch("/api/auth/logout", { method: "POST" }); } catch (_) {}
+          accessToken = null;
+          mustChangePassword = false;
+        }
+
+        return {
+          login,
+          refresh,
+          authFetch,
+          logout,
+          apply,
+          isSignedIn: function () { return !!accessToken; },
+          mustChangePassword: function () { return mustChangePassword; },
+          clearMustChangePassword: function () { mustChangePassword = false; },
+          // Test hook: drop the in-memory access token so the next authFetch has
+          // to go through the silent-refresh path.
+          _expireForTest: function () { accessToken = null; },
+        };
+      })();
+
+      // === Sign-in gate ===
+      // A small username/password panel. Shown when we are not signed in, or when a
+      // later request stays 401 even after a token refresh.
       window.authGate = (function () {
         let gate, form, userEl, passEl, errEl, submitEl, signOutEl;
         let resolveLogin = null; // set while loadOnStartup is waiting for a sign-in
@@ -1687,9 +1788,7 @@
             signOutEl.__wired = true;
             signOutEl.addEventListener("click", async function () {
               signOutEl.disabled = true;
-              try {
-                await fetch("/api/auth/logout", { method: "POST" });
-              } catch (_) {}
+              await window.authClient.logout();
               location.reload(); // startup re-runs -> sign-in panel
             });
           }
@@ -1703,16 +1802,20 @@
             submitEl.disabled = true;
             errEl.hidden = true;
             try {
-              const r = await fetch("/api/auth/login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username: u, password: p }),
-              });
-              if (r.ok) {
+              const res = await window.authClient.login(u, p);
+              if (res.ok) {
                 passEl.value = "";
                 hide();
                 markSignedIn();
-                if (resolveLogin) {
+                if (res.mustChangePassword && window.changePassword) {
+                  // Must set a new password before the board is usable.
+                  window.changePassword.open({ forced: true });
+                  if (resolveLogin) {
+                    const done = resolveLogin;
+                    resolveLogin = null;
+                    done();
+                  }
+                } else if (resolveLogin) {
                   const done = resolveLogin;
                   resolveLogin = null;
                   done();
@@ -1721,10 +1824,8 @@
                   location.reload();
                 }
               } else {
-                show("Wrong username or password");
+                show(res.error || "Wrong username or password");
               }
-            } catch (_) {
-              show("Could not reach the server — try again");
             } finally {
               submitEl.disabled = false;
             }
@@ -1753,15 +1854,16 @@
         }
 
         async function check() {
-          try {
-            const r = await fetch("/api/auth/me", {
-              headers: { Accept: "application/json" },
-            });
-            if (r.ok) markSignedIn();
-            return r.ok;
-          } catch (_) {
-            return false;
+          // A refresh both resumes a prior session (via the HttpOnly cookie) and
+          // tells us whether we are signed in.
+          const ok = await window.authClient.refresh();
+          if (ok) {
+            markSignedIn();
+            if (window.authClient.mustChangePassword() && window.changePassword) {
+              window.changePassword.open({ forced: true });
+            }
           }
+          return ok;
         }
 
         // Show the panel and resolve once the user signs in successfully.
@@ -1807,11 +1909,17 @@
           msgEl.style.color = ok ? "#4caf50" : "#ff6b6b";
         }
 
-        function open() {
+        let forced = false;
+
+        function open(opts) {
           els();
           if (!panel) return;
+          forced = !!(opts && opts.forced);
           form.reset();
           msgEl.hidden = true;
+          // In forced mode there is nothing to go back to — hide Cancel and say why.
+          if (cancelEl) cancelEl.hidden = forced;
+          if (forced) msg("Set a new password to continue.");
           panel.hidden = false;
           try {
             curEl.focus();
@@ -1820,6 +1928,7 @@
 
         function close() {
           if (!panel) els();
+          if (forced) return; // cannot dismiss until the password is changed
           if (panel) panel.hidden = true;
         }
 
@@ -1838,13 +1947,13 @@
               const nw = newEl.value || "";
               const cf = confEl.value || "";
               if (nw !== cf) return msg("The two new passwords do not match");
-              if (nw.length < 8) return msg("New password must be at least 8 characters");
+              if (nw.length < 12) return msg("New password must be at least 12 characters");
               if (nw === cur) return msg("New password must be different from the current one");
 
               submitEl.disabled = true;
               msgEl.hidden = true;
               try {
-                const r = await fetch("/api/auth/change-password", {
+                const r = await window.authClient.authFetch("/api/auth/change-password", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ currentPassword: cur, newPassword: nw }),
@@ -1853,14 +1962,25 @@
                   return {};
                 });
                 if (r.ok) {
+                  // The response carries a fresh token pair (every other session
+                  // was dropped) — adopt it so we stay signed in here.
+                  window.authClient.apply(body);
+                  window.authClient.clearMustChangePassword();
                   form.reset();
+                  const wasForced = forced;
+                  forced = false;
                   msg("Password changed.", true);
-                  setTimeout(close, 1200);
+                  if (wasForced) {
+                    setTimeout(function () { location.reload(); }, 900);
+                  } else {
+                    setTimeout(close, 1200);
+                  }
                 } else if (r.status === 401) {
+                  forced = false;
                   close();
                   if (window.authGate) window.authGate.onUnauthorized();
                 } else {
-                  msg(body.error || "Could not change the password");
+                  msg((body && body.detail) || "Could not change the password");
                 }
               } catch (_) {
                 msg("Could not reach the server — try again");
@@ -1875,9 +1995,10 @@
         return { open, close, wire };
       })();
 
-      // === Server persistence (Phase 1): the SQLite-backed API is the source of truth. ===
-      // sessionStorage / OPFS stay as an offline cache. This wrapper is deliberately
-      // thin so Phase 3 can drop in an Authorization header without touching the page.
+      // === Server persistence: the SQLite-backed API is the source of truth. ===
+      // sessionStorage / OPFS stay as an offline cache. Every call goes through
+      // window.authClient.authFetch, which attaches the bearer token and refreshes
+      // it once on a 401.
       window.serverSync = (function () {
         let timer = null,
           retry = 0,
@@ -1928,7 +2049,7 @@
           };
         }
 
-        // The session cookie expired mid-use — hand off to the sign-in panel.
+        // Still 401 after authClient tried to refresh — the session is truly gone.
         function note401(r) {
           if (r && r.status === 401 && window.authGate) window.authGate.onUnauthorized();
         }
@@ -1946,7 +2067,7 @@
             }
             inFlight = true;
             try {
-              const r = await fetch(apiUrl(), {
+              const r = await window.authClient.authFetch(apiUrl(), {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload()),
@@ -1979,7 +2100,7 @@
           while (inFlight) await new Promise((r) => setTimeout(r, 20));
           inFlight = true;
           try {
-            const r = await fetch(apiUrl(), {
+            const r = await window.authClient.authFetch(apiUrl(), {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(payload()),
@@ -1996,7 +2117,7 @@
 
         async function pull() {
           try {
-            const r = await fetch(apiUrl());
+            const r = await window.authClient.authFetch(apiUrl());
             note401(r);
             if (!r.ok) return false;
             const s = await r.json();
@@ -2018,7 +2139,7 @@
           pendingSince = 0;
           while (inFlight) await new Promise((r) => setTimeout(r, 20));
           try {
-            const r = await fetch(apiUrl(), { method: "DELETE" });
+            const r = await window.authClient.authFetch(apiUrl(), { method: "DELETE" });
             return r.ok;
           } catch (_) {
             return false;

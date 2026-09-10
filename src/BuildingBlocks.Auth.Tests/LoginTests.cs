@@ -200,15 +200,27 @@ public class RefreshTokenServiceTests
     }
 
     [Fact]
-    public async Task Replaying_a_revoked_token_revokes_the_whole_family()
+    public async Task Replaying_a_revoked_token_is_rejected_but_leaves_other_sessions_alone_by_default()
     {
         using var h = new LoginHarness();
         var user = await h.AddUserAsync("ada", Pw);
         var a = await h.Refresh.IssueAsync(user.Id);
         var b = await h.Refresh.RotateAsync(a.Raw);          // a -> b
+        Assert.Equal(RefreshOutcome.Reused, (await h.Refresh.RotateAsync(a.Raw)).Outcome);
+
+        Assert.True((await h.Refresh.RotateAsync(b.Next!.Raw)).Ok); // b still works
+    }
+
+    [Fact]
+    public async Task Replaying_a_revoked_token_burns_the_family_when_the_option_is_on()
+    {
+        using var h = new LoginHarness(o => o.RevokeAllOnRefreshReuse = true);
+        var user = await h.AddUserAsync("ada", Pw);
+        var a = await h.Refresh.IssueAsync(user.Id);
+        var b = await h.Refresh.RotateAsync(a.Raw);          // a -> b
         _ = await h.Refresh.RotateAsync(a.Raw);              // replay a  => burn everything
 
-        var useB = await h.Refresh.RotateAsync(b.Next!.Raw); // b should now be dead too
+        var useB = await h.Refresh.RotateAsync(b.Next!.Raw); // b is dead too
         Assert.Equal(RefreshOutcome.Reused, useB.Outcome);
     }
 

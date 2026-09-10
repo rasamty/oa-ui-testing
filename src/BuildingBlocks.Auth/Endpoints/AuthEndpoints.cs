@@ -1,4 +1,5 @@
 using BuildingBlocks.Auth.Login;
+using BuildingBlocks.Auth.Passwords;
 using BuildingBlocks.Auth.Tokens;
 using BuildingBlocks.Auth.Users;
 using Microsoft.AspNetCore.Builder;
@@ -45,7 +46,9 @@ public static class AuthEndpoints
             var rotate = await refresh.RotateAsync(raw, http.RequestAborted);
             if (!rotate.Ok || rotate.UserId is null)
             {
-                ClearRefreshCookie(http, opts.Value, prefix);
+                // Don't clear the cookie here: a client that fired two refreshes at
+                // once would have one of them lose the race and must not lose its
+                // still-valid session. Only /logout clears the cookie.
                 return Results.Json(new { detail = $"Refresh rejected ({rotate.Outcome})." },
                     statusCode: StatusCodes.Status401Unauthorized);
             }
@@ -80,6 +83,29 @@ public static class AuthEndpoints
             if (sub is null) return Results.Unauthorized();
             var user = await users.FindByIdAsync(sub, http.RequestAborted);
             return user is null ? Results.Unauthorized() : Results.Ok(ToMe(user));
+        }).RequireAuthorization();
+
+        // Change your own password. Clears MustChangePassword, drops every other session,
+        // and hands back a fresh token pair so the caller stays signed in here.
+        group.MapPost("/change-password", async (ChangePasswordBody body, HttpContext http,
+            PasswordChangeService svc, IOptions<AuthOptions> opts) =>
+        {
+            var sub = http.User.FindFirst("sub")?.Value;
+            if (sub is null) return Results.Unauthorized();
+
+            var r = await svc.ChangeAsync(sub, body.CurrentPassword, body.NewPassword, http.RequestAborted);
+            if (!r.Ok)
+                return r.Outcome switch
+                {
+                    PasswordChangeOutcome.WrongCurrentPassword or PasswordChangeOutcome.PolicyViolation
+                        => Results.Json(new { detail = r.Error }, statusCode: StatusCodes.Status400BadRequest),
+                    _ => Results.Unauthorized(),
+                };
+
+            SetRefreshCookie(http, opts.Value, prefix, r.RefreshToken!);
+            return Results.Ok(new TokenResponse(
+                r.AccessToken!, r.AccessExpiresUtc!.Value, "Bearer",
+                r.RefreshToken!.Raw, r.RefreshToken.ExpiresUtc, false, ToMe(r.User!)));
         }).RequireAuthorization();
 
         return app;
